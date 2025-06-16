@@ -5,11 +5,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: "0.0.0.0",
-    hmr: {
-      clientPort: 443,
-    },
-    allowedHosts: [".replit.dev"], // <-- Penambahan ada di sini
+    // Secara eksplisit mengizinkan host dari CodeSandbox sesuai pesan error
+    // PASTIKAN ANDA MENGGANTI URL DI BAWAH INI DENGAN URL DARI PREVIEW ANDA JIKA BERBEDA
+    allowedHosts: ["9y9scj-5173.csb.app"],
   },
-  appType: "spa",
 });
