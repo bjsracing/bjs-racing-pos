@@ -85,6 +85,7 @@ function App() {
         {/* <-- 2. TAMBAHKAN ROUTE INI */}
         <Route path="pembelian/baru" element={<FormPembelian />} />{" "}
         {/* <-- 2. TAMBAHKAN ROUTE INI */}
+        <Route path="pembelian/edit/:poId" element={<FormPembelian />} />
         <Route
           path="pembelian/detail/:poId"
           element={<DetailPembelian />}

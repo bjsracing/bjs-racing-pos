@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import { FiSave, FiPlus, FiTrash2, FiSearch, FiFilter } from "react-icons/fi";
 import PurchaseFilterModal from "../components/PurchaseFilterModal.jsx";
+import PurchaseOrderShareModal from "../components/PurchaseOrderShareModal.jsx";
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -16,6 +17,9 @@ function useDebounce(value, delay) {
 }
 
 const FormPembelian = () => {
+  const { poId } = useParams();
+  const isEditMode = Boolean(poId);
+
   const [orderItems, setOrderItems] = useState([]);
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [loading, setLoading] = useState(true);
@@ -36,12 +40,15 @@ const FormPembelian = () => {
   const [merekOptions, setMerekOptions] = useState([]);
   const [kategoriOptions, setKategoriOptions] = useState([]);
 
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [newOrderData, setNewOrderData] = useState(null);
+
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
       const { data: suppliersData } = await supabase
         .from("suppliers")
-        .select("id, nama_supplier");
+        .select("id, nama_supplier, telepon");
       if (suppliersData) setSupplierOptions(suppliersData);
 
       const { data: mereksData } = await supabase
@@ -60,22 +67,55 @@ const FormPembelian = () => {
       if (kategorisData) {
         const uniqueKategoris = [
           ...new Set(
-            kategorisData.map((item) => item.kategori).filter(Boolean),
+            kategorisData.map((item) => item.kategori).filter(Boolean)
           ),
         ];
         setKategoriOptions(uniqueKategoris.sort());
       }
+      if (isEditMode) {
+        const { data: orderData, error: orderError } = await supabase
+          .from("purchase_orders")
+          .select("*")
+          .eq("id", poId)
+          .single();
+        if (orderError) {
+          alert("Error memuat data pesanan: " + orderError.message);
+          setLoading(false);
+          return;
+        }
+
+        const { data: itemsData, error: itemsError } = await supabase
+          .from("purchase_order_items")
+          .select("*, products(*)")
+          .eq("purchase_order_id", poId);
+        if (itemsError) {
+          alert("Error memuat item pesanan: " + itemsError.message);
+          setLoading(false);
+          return;
+        }
+
+        setSelectedSupplier(orderData.supplier_id || "");
+        const loadedItems = itemsData.map((item) => ({
+          product_id: item.product_id,
+          kode: item.products.kode,
+          nama: item.products.nama,
+          merek: item.products.merek,
+          kategori: item.products.kategori,
+          catatan: item.products.catatan, // Catatan dari produk
+          catatan_item: item.catatan_item || "", // Catatan spesifik untuk PO ini
+          stok: item.products.stok,
+          satuan: item.products.satuan,
+          quantity_ordered: item.quantity_ordered,
+        }));
+        setOrderItems(loadedItems);
+      }
       setLoading(false);
     };
     fetchInitialData();
-  }, []);
+  }, [poId, isEditMode]);
 
-  // ==================================================================
-  // === BLOK YANG DIPERBAIKI SECARA TOTAL ADA DI SINI ===
-  // ==================================================================
   useEffect(() => {
     const searchProducts = async () => {
-      // ATURAN BARU: Hanya berhenti jika kolom pencarian KOSONG dan SEMUA filter dalam kondisi "semua".
       if (
         !debouncedSearchTerm &&
         activeFilters.merek === "semua" &&
@@ -85,14 +125,12 @@ const FormPembelian = () => {
         setFilteredProducts([]);
         return;
       }
-
       const { data, error } = await supabase.rpc("search_products_for_po", {
         search_term: debouncedSearchTerm,
         merek_filter: activeFilters.merek,
         kategori_filter: activeFilters.kategori,
         supplier_filter: activeFilters.supplier,
       });
-
       if (error) {
         console.error("Error searching products via RPC:", error);
         setFilteredProducts([]);
@@ -100,10 +138,8 @@ const FormPembelian = () => {
         setFilteredProducts(data || []);
       }
     };
-
     searchProducts();
   }, [debouncedSearchTerm, activeFilters]);
-  // ==================================================================
 
   const handleAddItem = (product) => {
     if (orderItems.some((item) => item.product_id === product.id))
@@ -114,7 +150,9 @@ const FormPembelian = () => {
       nama: product.nama,
       merek: product.merek,
       kategori: product.kategori,
-      stok: product.stok, // Menambahkan info stok untuk ditampilkan
+      stok: product.stok,
+      satuan: product.satuan,
+      catatan_item: "", // Inputan catatan manual per item
       quantity_ordered: 1,
     };
     setOrderItems([...orderItems, newItem]);
@@ -131,65 +169,72 @@ const FormPembelian = () => {
       orderItems.map((item) =>
         item.product_id === product_id
           ? { ...item, quantity_ordered: newQuantity }
-          : item,
-      ),
+          : item
+      )
+    );
+  };
+
+  const handleItemNoteChange = (product_id, note) => {
+    setOrderItems(
+      orderItems.map((item) =>
+        item.product_id === product_id ? { ...item, catatan_item: note } : item
+      )
     );
   };
 
   const handleSaveOrder = async () => {
-    // 1. Validasi: Pastikan ada item di keranjang
     if (orderItems.length === 0) {
       alert("Silakan tambahkan minimal satu produk ke dalam pesanan.");
       return;
     }
-
     setIsSaving(true);
-
     try {
-      // 2. Generate Nomor PO yang unik
-      const po_number = `PO-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}-${Date.now().toString().slice(-6)}`;
-
-      // 3. Simpan data utama (header) ke tabel 'purchase_orders'
+      const po_number = `PO-BJS-${new Date().getFullYear()}${String(
+        new Date().getMonth() + 1
+      ).padStart(2, "0")}-${Date.now().toString().slice(-6)}`;
       const { data: newOrder, error: orderError } = await supabase
         .from("purchase_orders")
         .insert({
           po_number: po_number,
           supplier_id: selectedSupplier || null,
-          status: "Dipesan", // Status awal sesuai alur kerja
+          status: "Dipesan",
         })
-        .select("id") // Ambil kembali ID dari PO yang baru dibuat untuk langkah berikutnya
+        .select("id, order_date")
         .single();
-
-      if (orderError) {
-        throw orderError; // Lemparkan error jika gagal
-      }
-
-      // 4. Siapkan data item untuk disimpan, kaitkan dengan ID PO yang baru
+      if (orderError) throw orderError;
       const itemsToInsert = orderItems.map((item) => ({
         purchase_order_id: newOrder.id,
         product_id: item.product_id,
         quantity_ordered: item.quantity_ordered,
-      }));
-
-      // 5. Simpan semua item ke tabel 'purchase_order_items'
+        catatan_item: item.catatan_item,
+      })); // <-- Simpan catatan item ke DB
       const { error: itemsError } = await supabase
         .from("purchase_order_items")
         .insert(itemsToInsert);
-
-      if (itemsError) {
-        // Jika penyimpanan item gagal, idealnya kita hapus PO header yang sudah terbuat (transaksional)
-        // Namun untuk sekarang, kita lemparkan error saja agar proses berhenti
-        throw itemsError;
-      }
-
-      // 6. Jika semua berhasil
-      alert(`Pesanan ${po_number} berhasil dibuat!`);
-      navigate("/pembelian"); // Arahkan kembali ke halaman daftar pembelian
+      if (itemsError) throw itemsError;
+      const supplier = supplierOptions.find((s) => s.id === selectedSupplier);
+      const completeOrderData = {
+        po_number: po_number,
+        order_date: newOrder.order_date,
+        supplier_name: supplier ? supplier.nama_supplier : "Supplier Umum",
+        supplier_phone: supplier ? supplier.telepon : null,
+        items: orderItems,
+      };
+      setNewOrderData(completeOrderData);
+      setIsShareModalOpen(true);
     } catch (error) {
       alert("Terjadi kesalahan saat menyimpan pesanan: " + error.message);
     } finally {
-      setIsSaving(false); // Pastikan tombol kembali aktif apa pun yang terjadi
+      setIsSaving(false);
     }
+  };
+
+  const handleCloseShareModal = () => {
+    setIsShareModalOpen(false);
+    setNewOrderData(null);
+    setOrderItems([]);
+    setSelectedSupplier("");
+    navigate("/pembelian");
   };
 
   if (loading) return <p className="text-center p-8">Memuat data...</p>;
@@ -205,10 +250,15 @@ const FormPembelian = () => {
         kategoriOptions={kategoriOptions}
         supplierOptions={supplierOptions}
       />
+      <PurchaseOrderShareModal
+        isOpen={isShareModalOpen}
+        onClose={handleCloseShareModal}
+        orderData={newOrderData}
+      />
 
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">
-          Buat Pesanan Baru
+          {isEditMode ? "Edit Pesanan Pembelian" : "Buat Pesanan Baru"}
         </h1>
         <Link
           to="/pembelian"
@@ -218,8 +268,8 @@ const FormPembelian = () => {
         </Link>
       </div>
 
+      {/* SEMUA BAGIAN DI BAWAH INI SEKARANG LENGKAP */}
       <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-5xl mx-auto">
-        {/* === PEMILIHAN SUPPLIER === */}
         <div className="mb-6">
           <label
             htmlFor="supplier"
@@ -244,7 +294,6 @@ const FormPembelian = () => {
 
         <div className="border-t my-6"></div>
 
-        {/* === PENCARIAN & FILTER "PINTAR" === */}
         <h3 className="text-lg font-semibold text-slate-800 mb-4">
           Cari & Tambah Produk
         </h3>
@@ -268,8 +317,6 @@ const FormPembelian = () => {
           </button>
         </div>
 
-        {/* Hasil Pencarian */}
-        {/* DIUBAH: Tampilkan jika sedang mengetik ATAU jika ada hasil dari filter */}
         {(searchTerm || filteredProducts.length > 0) && (
           <ul className="bg-white border border-slate-200 rounded-lg max-h-64 overflow-y-auto">
             {filteredProducts.length > 0 ? (
@@ -314,51 +361,55 @@ const FormPembelian = () => {
 
         <div className="border-t my-6"></div>
 
-        {/* === DAFTAR BARANG YANG DIPESAN === */}
         <h3 className="text-lg font-semibold text-slate-800 mb-4">
           Item Pesanan
         </h3>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {orderItems.length > 0 ? (
             orderItems.map((item) => (
-              <div
-                key={item.product_id}
-                className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start bg-slate-50 p-4 rounded-lg"
-              >
-                <div className="md:col-span-2">
-                  <p className="font-bold text-slate-800">
-                    <span className="font-normal text-slate-500">
-                      [{item.kode || "N/A"}]
-                    </span>{" "}
-                    {item.nama}
-                  </p>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Merek:{" "}
-                    <span className="font-medium text-slate-600">
-                      {item.merek || "-"}
-                    </span>{" "}
-                    | Kategori:{" "}
-                    <span className="font-medium text-slate-600">
-                      {item.kategori || "-"}
-                    </span>
-                  </p>
+              <div key={item.product_id} className="bg-slate-50 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                  <div className="md:col-span-2">
+                    {/* PERMINTAAN 4: Perubahan warna dan style */}
+                    <p className="font-bold text-blue-600 break-words">
+                      {item.nama}
+                    </p>
+                    <p className="text-sm text-slate-800 font-semibold mt-1">
+                      (<span className="font-bold">{item.kode || "N/A"}</span>)
+                      -{" "}
+                      <span className="text-orange-500">
+                        {item.merek || "-"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 justify-self-stretch">
+                    <input
+                      type="number"
+                      value={item.quantity_ordered}
+                      onChange={(e) =>
+                        handleQuantityChange(item.product_id, e.target.value)
+                      }
+                      className="w-full p-2 border border-slate-300 rounded-lg text-center"
+                      min="1"
+                    />
+                    <button
+                      onClick={() => handleRemoveItem(item.product_id)}
+                      className="p-2 text-red-500 hover:bg-red-100 rounded-full"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 justify-self-stretch">
+                <div className="mt-2">
                   <input
-                    type="number"
-                    value={item.quantity_ordered}
+                    type="text"
+                    placeholder="Tambah catatan untuk item ini... (opsional)"
+                    value={item.catatan_item}
                     onChange={(e) =>
-                      handleQuantityChange(item.product_id, e.target.value)
+                      handleItemNoteChange(item.product_id, e.target.value)
                     }
-                    className="w-full p-2 border border-slate-300 rounded-lg text-center"
-                    min="1"
+                    className="w-full text-sm p-2 border border-slate-300 rounded-lg"
                   />
-                  <button
-                    onClick={() => handleRemoveItem(item.product_id)}
-                    className="p-2 text-red-500 hover:bg-red-100 rounded-full"
-                  >
-                    <FiTrash2 />
-                  </button>
                 </div>
               </div>
             ))
@@ -369,7 +420,6 @@ const FormPembelian = () => {
           )}
         </div>
 
-        {/* === TOMBOL SIMPAN === */}
         <div className="mt-8 border-t pt-6 flex justify-end">
           <button
             onClick={handleSaveOrder}
@@ -377,7 +427,13 @@ const FormPembelian = () => {
             className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg shadow-md hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed"
           >
             <FiSave />
-            <span>{isSaving ? "Menyimpan..." : "Simpan Pesanan"}</span>
+            <span>
+              {isSaving
+                ? "Menyimpan..."
+                : isEditMode
+                ? "Simpan Perubahan"
+                : "Simpan Pesanan"}
+            </span>
           </button>
         </div>
       </div>

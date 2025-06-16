@@ -1,27 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { FiPlus, FiEye } from "react-icons/fi";
+import { FiPlus, FiEye, FiEdit, FiTrash2 } from "react-icons/fi"; // Impor sudah lengkap
 import { supabase } from "../supabaseClient";
 
 const Pembelian = () => {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  // --- TAMBAHAN: State untuk memicu refresh data ---
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchPurchaseOrders = async () => {
       setLoading(true);
-      // DIUBAH: Join ke suppliers(nama_supplier)
       const { data, error } = await supabase
         .from("purchase_orders")
         .select(
-          `
-          id,
-          po_number,
-          order_date,
-          status,
-          total_amount,
-          suppliers ( nama_supplier ) 
-        `,
+          `id, po_number, order_date, status, suppliers ( nama_supplier )`
         )
         .order("created_at", { ascending: false });
 
@@ -34,7 +28,32 @@ const Pembelian = () => {
     };
 
     fetchPurchaseOrders();
-  }, []);
+    // --- PERUBAHAN: useEffect akan berjalan lagi jika refreshTrigger berubah ---
+  }, [refreshTrigger]);
+
+  // --- TAMBAHAN: Fungsi untuk menghapus pesanan ---
+  const handleDeleteOrder = async (orderId, poNumber) => {
+    // 1. Minta konfirmasi dari pengguna untuk keamanan
+    if (
+      window.confirm(
+        `Apakah Anda yakin ingin menghapus pesanan "${poNumber}"? Tindakan ini tidak bisa dibatalkan.`
+      )
+    ) {
+      // 2. Lakukan proses hapus ke Supabase
+      const { error } = await supabase
+        .from("purchase_orders")
+        .delete()
+        .eq("id", orderId);
+
+      if (error) {
+        alert("Gagal menghapus pesanan: " + error.message);
+      } else {
+        alert("Pesanan berhasil dihapus.");
+        // 3. Picu refresh data untuk memperbarui tampilan
+        setRefreshTrigger((t) => t + 1);
+      }
+    }
+  };
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -94,7 +113,6 @@ const Pembelian = () => {
               >
                 <div className="col-span-2 md:col-span-1">
                   <p className="font-bold text-blue-600">{order.po_number}</p>
-                  {/* DIUBAH: Menggunakan order.suppliers?.nama_supplier */}
                   <p className="text-sm text-slate-600">
                     {order.suppliers?.nama_supplier || "Supplier Umum"}
                   </p>
@@ -108,19 +126,47 @@ const Pembelian = () => {
                 <div>
                   <p className="text-xs text-slate-500">Status</p>
                   <span
-                    className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(order.status)}`}
+                    className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(
+                      order.status
+                    )}`}
                   >
                     {order.status}
                   </span>
                 </div>
-                <div className="flex justify-end items-center">
+                <div className="flex justify-end items-center gap-2">
                   <Link
                     to={`/pembelian/detail/${order.id}`}
                     className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-200 rounded-full transition-colors"
-                    title="Lihat & Terima Barang"
+                    title={
+                      order.status === "Dipesan"
+                        ? "Lihat & Terima Barang"
+                        : "Lihat Detail"
+                    }
                   >
                     <FiEye size={18} />
                   </Link>
+
+                  {order.status === "Dipesan" && (
+                    <>
+                      <Link
+                        to={`/pembelian/edit/${order.id}`}
+                        className="p-2 text-slate-600 hover:text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors"
+                        title="Edit Pesanan"
+                      >
+                        <FiEdit size={18} />
+                      </Link>
+                      {/* --- PERUBAHAN: onClick sekarang memanggil fungsi hapus --- */}
+                      <button
+                        onClick={() =>
+                          handleDeleteOrder(order.id, order.po_number)
+                        }
+                        className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
+                        title="Hapus Pesanan"
+                      >
+                        <FiTrash2 size={18} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
