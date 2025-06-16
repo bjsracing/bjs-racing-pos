@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import {
@@ -20,11 +20,10 @@ const DetailPembelian = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   const [invoiceFile, setInvoiceFile] = useState(null);
-
-  // State baru untuk mengontrol modal share/unduh
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [poDocumentData, setPoDocumentData] = useState(null);
 
+  // --- SEMUA FUNGSI HELPER & HANDLER KITA KUMPULKAN DI SINI ---
   const formatRupiah = (number) => {
     if (isNaN(number) || number === null) return "";
     return new Intl.NumberFormat("id-ID", {
@@ -37,25 +36,22 @@ const DetailPembelian = () => {
   useEffect(() => {
     const fetchDetails = async () => {
       setLoading(true);
-      const { data: orderData, error: orderError } = await supabase
-        .from("purchase_orders")
-        .select(`*, suppliers(nama_supplier, telepon)`)
-        .eq("id", poId)
-        .single();
-      if (orderError) {
-        setError(orderError.message);
-        setLoading(false);
-        return;
-      }
-      setPurchaseOrder(orderData);
+      setError(null);
+      try {
+        const { data: orderData, error: orderError } = await supabase
+          .from("purchase_orders")
+          .select(`*, suppliers(nama_supplier, telepon)`)
+          .eq("id", poId)
+          .single();
+        if (orderError) throw orderError;
+        setPurchaseOrder(orderData);
 
-      const { data: itemsData, error: itemsError } = await supabase
-        .from("purchase_order_items")
-        .select(`*, products(*)`)
-        .eq("purchase_order_id", poId);
-      if (itemsError) {
-        setError(itemsError.message);
-      } else {
+        const { data: itemsData, error: itemsError } = await supabase
+          .from("purchase_order_items")
+          .select(`*, products(*)`)
+          .eq("purchase_order_id", poId);
+        if (itemsError) throw itemsError;
+
         const initialItems = itemsData.map((item) => ({
           ...item,
           new_purchase_price: item.purchase_price || "",
@@ -63,8 +59,12 @@ const DetailPembelian = () => {
           is_price_changed: false,
         }));
         setItems(initialItems);
+      } catch (err) {
+        setError(err.message);
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchDetails();
   }, [poId]);
@@ -88,14 +88,6 @@ const DetailPembelian = () => {
     );
   };
 
-  const isSaveDisabled = useMemo(() => {
-    if (isSaving) return true;
-    if (items.length === 0) return true;
-    return items.some(
-      (item) => !item.new_purchase_price || Number(item.new_purchase_price) <= 0
-    );
-  }, [items, isSaving]);
-
   const handleProcessReceipt = async () => {
     if (
       !window.confirm(
@@ -108,7 +100,7 @@ const DetailPembelian = () => {
     try {
       if (invoiceFile) {
         const fileName = `${poId}-${Date.now()}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from("purchase-invoices")
           .upload(fileName, invoiceFile);
         if (uploadError) throw uploadError;
@@ -140,8 +132,9 @@ const DetailPembelian = () => {
     }
   };
 
-  // Fungsi baru untuk menyiapkan data dan menampilkan modal
   const handleShowPoDocument = () => {
+    // Pastikan purchaseOrder sudah ada sebelum membuat dokumen
+    if (!purchaseOrder) return;
     const documentData = {
       po_number: purchaseOrder.po_number,
       order_date: purchaseOrder.order_date,
@@ -153,7 +146,7 @@ const DetailPembelian = () => {
         nama: item.products.nama,
         merek: item.products.merek,
         satuan: item.products.satuan,
-        catatan: item.products.catatan,
+        catatan_item: item.catatan_item,
         quantity_ordered: item.quantity_ordered,
       })),
     };
@@ -161,13 +154,24 @@ const DetailPembelian = () => {
     setIsShareModalOpen(true);
   };
 
-  if (loading) return <div className="p-8 text-center">Memuat data...</div>;
+  if (loading)
+    return <div className="p-8 text-center">Memuat detail pesanan...</div>;
   if (error)
     return <div className="p-8 text-center text-red-500">Error: {error}</div>;
   if (!purchaseOrder)
     return <div className="p-8 text-center">Pesanan tidak ditemukan.</div>;
 
-  const isOrderCompleted = purchaseOrder.status === "Selesai";
+  // --- SEMUA LOGIKA KONDISIONAL DIPINDAH KE SINI AGAR AMAN ---
+  const isOrderClosed =
+    purchaseOrder.status === "Selesai" || purchaseOrder.status === "Dibatalkan";
+  const areAllPricesFilled = items.every(
+    (item) => item.new_purchase_price && Number(item.new_purchase_price) > 0
+  );
+  const isSaveDisabled =
+    isSaving ||
+    isOrderClosed ||
+    (purchaseOrder.status === "Dipesan" &&
+      (!invoiceFile || !areAllPricesFilled));
 
   return (
     <>
@@ -180,24 +184,23 @@ const DetailPembelian = () => {
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">
-            {isOrderCompleted
-              ? "Detail Pesanan Selesai"
+            {isOrderClosed
+              ? `Detail Pesanan (${purchaseOrder.status})`
               : `Terima Barang: ${purchaseOrder.po_number}`}
           </h1>
-          <div className="text-sm text-slate-500 mt-1 space-x-4">
+          <div className="text-base text-slate-800 mt-2 space-x-4">
             <span>
               Supplier:{" "}
-              <span className="font-semibold">
+              <span className="font-bold text-blue-600">
                 {purchaseOrder.suppliers?.nama_supplier || "Supplier Umum"}
               </span>
             </span>
             <span>
-              Status:{" "}
-              <span className="font-semibold">{purchaseOrder.status}</span>
+              Status: <span className="font-bold">{purchaseOrder.status}</span>
             </span>
             <span>
               Tanggal:{" "}
-              <span className="font-semibold">
+              <span className="font-bold">
                 {new Date(purchaseOrder.order_date).toLocaleDateString("id-ID")}
               </span>
             </span>
@@ -223,24 +226,30 @@ const DetailPembelian = () => {
               className="grid grid-cols-1 md:grid-cols-12 gap-4 border-b last:border-b-0 pb-6"
             >
               <div className="md:col-span-5">
-                <p className="font-bold text-lg text-slate-800">
+                <p className="font-bold text-lg text-blue-600">
                   {item.products.nama}
                 </p>
-                <p className="text-sm text-slate-500">
-                  {item.products.kode || "Tanpa Kode"}
+                <p className="text-sm text-slate-800 font-semibold mt-1">
+                  (
+                  <span className="font-bold">
+                    {item.products.kode || "N/A"}
+                  </span>
+                  ) -{" "}
+                  <span className="text-orange-500">
+                    {item.products.merek || "-"}
+                  </span>
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Merek: {item.products.merek} | Kategori:{" "}
+                <p className="text-sm text-slate-800 mt-1">
                   {item.products.kategori}
                 </p>
               </div>
               <div className="md:col-span-1 text-center">
-                <p className="text-xs text-slate-500 mb-1">Dipesan</p>
+                <p className="text-sm text-slate-800 mb-1">Dipesan</p>
                 <p className="font-bold text-2xl">{item.quantity_ordered}</p>
               </div>
               <div className="md:col-span-3">
-                <label className="block text-xs text-slate-500 mb-1">
-                  {isOrderCompleted
+                <label className="block text-sm font-medium text-slate-800 mb-1">
+                  {isOrderClosed
                     ? "Harga Beli Tercatat"
                     : "Harga Beli Baru (per item)"}
                 </label>
@@ -250,7 +259,7 @@ const DetailPembelian = () => {
                   </span>
                   <input
                     type="text"
-                    placeholder={isOrderCompleted ? "" : "Wajib diisi"}
+                    placeholder={isOrderClosed ? "" : "Wajib diisi"}
                     value={
                       item.new_purchase_price
                         ? new Intl.NumberFormat("id-ID").format(
@@ -265,18 +274,18 @@ const DetailPembelian = () => {
                         e.target.value
                       )
                     }
-                    disabled={isOrderCompleted}
-                    className="w-full p-2 pl-8 border rounded-lg disabled:bg-slate-100"
+                    disabled={isOrderClosed}
+                    className="w-full p-2 pl-8 border rounded-lg disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
-                {!isOrderCompleted && (
-                  <p className="text-xs text-slate-400 mt-1">
+                {!isOrderClosed && (
+                  <p className="text-sm text-slate-700 mt-1">
                     Harga lama: {formatRupiah(item.products.harga_beli)}
                   </p>
                 )}
               </div>
               <div className="md:col-span-3">
-                {item.is_price_changed && !isOrderCompleted && (
+                {item.is_price_changed && !isOrderClosed && (
                   <div className="bg-yellow-50 p-3 rounded-lg animate-fade-in">
                     <label className="block text-xs text-yellow-700 font-semibold mb-1">
                       Update harga jual?
@@ -304,7 +313,7 @@ const DetailPembelian = () => {
                         className="w-full p-2 pl-8 border rounded-lg border-yellow-300 focus:ring-yellow-500"
                       />
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-sm text-slate-700 mt-1">
                       Harga jual lama: {formatRupiah(item.products.harga_jual)}
                     </p>
                   </div>
@@ -318,11 +327,11 @@ const DetailPembelian = () => {
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-lg">
           <h3 className="text-lg font-semibold text-slate-700 mb-2">
-            {isOrderCompleted
+            {isOrderClosed
               ? "Nota/Invoice Pembelian"
-              : "Unggah Foto Nota/Invoice (Opsional)"}
+              : "Unggah Foto Nota/Invoice (Wajib)"}
           </h3>
-          {isOrderCompleted && purchaseOrder.invoice_image_url ? (
+          {isOrderClosed && purchaseOrder.invoice_image_url ? (
             <div>
               <a
                 href={purchaseOrder.invoice_image_url}
@@ -337,7 +346,7 @@ const DetailPembelian = () => {
                 />
               </a>
             </div>
-          ) : isOrderCompleted && !purchaseOrder.invoice_image_url ? (
+          ) : isOrderClosed && !purchaseOrder.invoice_image_url ? (
             <div className="border-2 border-dashed rounded-lg p-8 text-center">
               <p className="text-sm text-slate-500">
                 Tidak ada nota/invoice yang diunggah.
@@ -388,21 +397,21 @@ const DetailPembelian = () => {
             </button>
           )}
           <p className="text-slate-600 text-center mb-4">
-            {isOrderCompleted
-              ? "Pesanan ini sudah selesai diproses."
-              : "Pastikan semua harga beli baru telah diisi sebelum menyimpan."}
+            {isOrderClosed
+              ? "Pesanan ini sudah ditutup."
+              : "Pastikan semua harga beli baru & nota telah diunggah sebelum menyimpan."}
           </p>
           <button
             onClick={handleProcessReceipt}
-            disabled={isSaveDisabled || isOrderCompleted}
+            disabled={isSaveDisabled}
             className="w-full flex items-center justify-center gap-3 bg-green-500 text-white font-bold py-4 px-6 rounded-lg shadow-lg hover:bg-green-600 transition-transform transform hover:scale-105 disabled:bg-slate-400 disabled:cursor-not-allowed disabled:scale-100"
           >
             <FiCheckSquare size={22} />
             <span>
               {isSaving
                 ? "Memproses..."
-                : isOrderCompleted
-                ? "Pesanan Selesai"
+                : isOrderClosed
+                ? "Pesanan Ditutup"
                 : "Simpan & Terima Barang"}
             </span>
           </button>

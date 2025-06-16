@@ -189,39 +189,86 @@ const FormPembelian = () => {
     }
     setIsSaving(true);
     try {
-      const po_number = `PO-BJS-${new Date().getFullYear()}${String(
-        new Date().getMonth() + 1
-      ).padStart(2, "0")}-${Date.now().toString().slice(-6)}`;
-      const { data: newOrder, error: orderError } = await supabase
-        .from("purchase_orders")
-        .insert({
+      // PERCABANGAN LOGIKA DIMULAI DI SINI
+      if (isEditMode) {
+        // --- LOGIKA UNTUK UPDATE (EDIT) ---
+
+        // 1. Update data header PO (misalnya jika supplier diubah)
+        const { error: updateError } = await supabase
+          .from("purchase_orders")
+          .update({ supplier_id: selectedSupplier || null })
+          .eq("id", poId);
+
+        if (updateError) throw updateError;
+
+        // 2. Hapus semua item lama yang terkait dengan PO ini
+        const { error: deleteError } = await supabase
+          .from("purchase_order_items")
+          .delete()
+          .eq("purchase_order_id", poId);
+
+        if (deleteError) throw deleteError;
+
+        // 3. Masukkan kembali semua item dari state (termasuk catatan)
+        const itemsToInsert = orderItems.map((item) => ({
+          purchase_order_id: poId, // Gunakan ID PO yang sudah ada
+          product_id: item.product_id,
+          quantity_ordered: item.quantity_ordered,
+          catatan_item: item.catatan_item, // Simpan catatan per item
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("purchase_order_items")
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+
+        alert(`Pesanan berhasil diperbarui!`);
+        navigate("/pembelian"); // Langsung kembali ke daftar setelah edit
+      } else {
+        // --- LOGIKA UNTUK CREATE (BUAT BARU) ---
+        // Kode ini sama persis dengan yang Anda miliki sekarang
+
+        const po_number = `PO-BJS-${new Date().getFullYear()}${String(
+          new Date().getMonth() + 1
+        ).padStart(2, "0")}-${Date.now().toString().slice(-6)}`;
+
+        const { data: newOrder, error: orderError } = await supabase
+          .from("purchase_orders")
+          .insert({
+            po_number: po_number,
+            supplier_id: selectedSupplier || null,
+            status: "Dipesan",
+          })
+          .select("id, order_date")
+          .single();
+
+        if (orderError) throw orderError;
+
+        const itemsToInsert = orderItems.map((item) => ({
+          purchase_order_id: newOrder.id,
+          product_id: item.product_id,
+          quantity_ordered: item.quantity_ordered,
+          catatan_item: item.catatan_item,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from("purchase_order_items")
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+
+        const supplier = supplierOptions.find((s) => s.id === selectedSupplier);
+        const completeOrderData = {
           po_number: po_number,
-          supplier_id: selectedSupplier || null,
-          status: "Dipesan",
-        })
-        .select("id, order_date")
-        .single();
-      if (orderError) throw orderError;
-      const itemsToInsert = orderItems.map((item) => ({
-        purchase_order_id: newOrder.id,
-        product_id: item.product_id,
-        quantity_ordered: item.quantity_ordered,
-        catatan_item: item.catatan_item,
-      })); // <-- Simpan catatan item ke DB
-      const { error: itemsError } = await supabase
-        .from("purchase_order_items")
-        .insert(itemsToInsert);
-      if (itemsError) throw itemsError;
-      const supplier = supplierOptions.find((s) => s.id === selectedSupplier);
-      const completeOrderData = {
-        po_number: po_number,
-        order_date: newOrder.order_date,
-        supplier_name: supplier ? supplier.nama_supplier : "Supplier Umum",
-        supplier_phone: supplier ? supplier.telepon : null,
-        items: orderItems,
-      };
-      setNewOrderData(completeOrderData);
-      setIsShareModalOpen(true);
+          order_date: newOrder.order_date,
+          supplier_name: supplier ? supplier.nama_supplier : "Supplier Umum",
+          supplier_phone: supplier ? supplier.telepon : null,
+          items: orderItems,
+        };
+        setNewOrderData(completeOrderData);
+        setIsShareModalOpen(true);
+      }
     } catch (error) {
       alert("Terjadi kesalahan saat menyimpan pesanan: " + error.message);
     } finally {
