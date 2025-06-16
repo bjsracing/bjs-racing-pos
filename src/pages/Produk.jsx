@@ -45,7 +45,7 @@ function Produk() {
     status: "semua",
   });
   const [showLowStockOnly, setShowLowStockOnly] = useState(
-    () => location.state?.filter === "stok_rendah",
+    () => location.state?.filter === "stok_rendah"
   );
   const [merekOptions, setMerekOptions] = useState([]);
   const [kategoriOptions, setKategoriOptions] = useState([]);
@@ -117,7 +117,7 @@ function Produk() {
       if (Array.isArray(kategorisData)) {
         const uniqueKategoris = [
           ...new Set(
-            kategorisData.map((item) => item.kategori).filter(Boolean),
+            kategorisData.map((item) => item.kategori).filter(Boolean)
           ),
         ];
         setKategoriOptions(uniqueKategoris.sort());
@@ -146,7 +146,7 @@ function Produk() {
   const handleSaveProduct = async (productData) => {
     // 1. Temukan objek supplier lengkap berdasarkan supplier_id yang dikirim dari modal
     const selectedSupplier = supplierOptions.find(
-      (opt) => opt.id === productData.supplier_id,
+      (opt) => opt.id === productData.supplier_id
     );
 
     // 2. Siapkan data yang akan dikirim, buang properti yang tidak perlu
@@ -199,12 +199,12 @@ function Produk() {
   const handleDataUpload = async (dataFromExcel) => {
     if (!dataFromExcel || dataFromExcel.length === 0) {
       return alert(
-        "Tidak ada data di dalam file Excel atau format tidak sesuai.",
+        "Tidak ada data di dalam file Excel atau format tidak sesuai."
       );
     }
     if (
       !window.confirm(
-        `Anda akan mengimpor ${dataFromExcel.length} produk. Lanjutkan?`,
+        `Anda akan mengimpor ${dataFromExcel.length} produk. Lanjutkan?`
       )
     ) {
       return;
@@ -245,6 +245,7 @@ function Produk() {
         onSave={handleSaveProduct}
         productToEdit={productToEdit}
         supplierOptions={supplierOptions}
+        allProducts={products} // <-- TAMBAHKAN PROP INIINI
       />
       <ViewNoteModal
         isOpen={noteToView !== null}
@@ -294,7 +295,11 @@ function Produk() {
         </button>
         <button
           onClick={() => setShowLowStockOnly(!showLowStockOnly)}
-          className={`flex items-center justify-center gap-2 font-bold py-2 px-4 rounded-lg ${showLowStockOnly ? "bg-yellow-400 text-yellow-900" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"}`}
+          className={`flex items-center justify-center gap-2 font-bold py-2 px-4 rounded-lg ${
+            showLowStockOnly
+              ? "bg-yellow-400 text-yellow-900"
+              : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+          }`}
         >
           <FiAlertTriangle />
           <span>
@@ -383,13 +388,13 @@ function Produk() {
                     <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
                       Rp{" "}
                       {new Intl.NumberFormat("id-ID").format(
-                        product.harga_beli,
+                        product.harga_beli
                       )}
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
                       Rp{" "}
                       {new Intl.NumberFormat("id-ID").format(
-                        product.harga_jual,
+                        product.harga_jual
                       )}
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm text-center">
@@ -411,7 +416,11 @@ function Produk() {
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm text-center whitespace-nowrap">
                       <span
-                        className={`px-2 py-1 font-semibold leading-tight rounded-full ${product.status === "Aktif" ? "bg-green-100 text-green-900" : "bg-red-100 text-red-900"}`}
+                        className={`px-2 py-1 font-semibold leading-tight rounded-full ${
+                          product.status === "Aktif"
+                            ? "bg-green-100 text-green-900"
+                            : "bg-red-100 text-red-900"
+                        }`}
                       >
                         {product.status}
                       </span>
@@ -455,7 +464,11 @@ function Produk() {
             return (
               <div
                 key={product.id}
-                className={`bg-white p-4 rounded-lg shadow ${isLowStock ? "border-l-4 border-red-500" : "border-l-4 border-transparent"}`}
+                className={`bg-white p-4 rounded-lg shadow ${
+                  isLowStock
+                    ? "border-l-4 border-red-500"
+                    : "border-l-4 border-transparent"
+                }`}
               >
                 {" "}
                 <div className="flex justify-between items-start mb-2">
@@ -464,7 +477,11 @@ function Produk() {
                     {product.nama}
                   </h3>{" "}
                   <span
-                    className={`px-2 py-1 text-xs font-semibold leading-tight rounded-full whitespace-nowrap ${product.status === "Aktif" ? "bg-green-100 text-green-900" : "bg-red-100 text-red-900"}`}
+                    className={`px-2 py-1 text-xs font-semibold leading-tight rounded-full whitespace-nowrap ${
+                      product.status === "Aktif"
+                        ? "bg-green-100 text-green-900"
+                        : "bg-red-100 text-red-900"
+                    }`}
                   >
                     {product.status}
                   </span>{" "}
@@ -490,7 +507,9 @@ function Produk() {
                       {" "}
                       <p className="text-slate-500">Stok</p>{" "}
                       <p
-                        className={`font-semibold ${isLowStock ? "text-red-600" : "text-slate-700"}`}
+                        className={`font-semibold ${
+                          isLowStock ? "text-red-600" : "text-slate-700"
+                        }`}
                       >
                         {product.stok}{" "}
                         <span className="text-xs font-normal text-slate-400">
@@ -504,7 +523,7 @@ function Produk() {
                       <p className="text-lg font-bold text-orange-500">
                         Rp{" "}
                         {new Intl.NumberFormat("id-ID").format(
-                          product.harga_jual,
+                          product.harga_jual
                         )}
                       </p>{" "}
                     </div>{" "}
