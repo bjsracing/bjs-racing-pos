@@ -156,7 +156,6 @@ const FormPembelian = () => {
       quantity_ordered: 1,
     };
     setOrderItems([...orderItems, newItem]);
-    setSearchTerm("");
   };
 
   const handleRemoveItem = (product_id) => {
