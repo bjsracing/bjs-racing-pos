@@ -1,71 +1,99 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Tambahkan useCallback
 import { Link } from "react-router-dom";
-import { FiPlus, FiEye, FiEdit, FiTrash2 } from "react-icons/fi"; // Impor sudah lengkap
+import {
+  FiPlus,
+  FiEye,
+  FiEdit,
+  FiTrash2,
+  FiXCircle,
+  FiSearch, // <-- Tambahan
+  FiRefreshCw, // <-- Tambahan
+} from "react-icons/fi";
 import { supabase } from "../supabaseClient";
+import PurchaseOrderFilter from "../components/PurchaseOrderFilter.jsx"; // <-- TambahanTambahan
 
 const Pembelian = () => {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  // --- TAMBAHAN: State untuk memicu refresh data ---
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Fungsi ini akan dipanggil oleh komponen filter setiap kali ada perubahan
+  const handleFilterChange = useCallback(async (filters) => {
+    setLoading(true);
+    const { data, error } = await supabase.rpc("search_purchase_orders", {
+      search_term: filters.searchTerm,
+      status_filter: filters.status,
+      supplier_id_filter:
+        filters.supplier === "semua" ? null : filters.supplier,
+      start_date_filter: filters.startDate || null,
+      end_date_filter: filters.endDate || null,
+    });
+
+    if (error) {
+      alert("Gagal mengambil data pesanan: " + error.message);
+      setPurchaseOrders([]);
+    } else {
+      setPurchaseOrders(data || []);
+    }
+    setLoading(false);
+  }, []);
+
+  // useEffect baru ini untuk memuat data awal & merespon refresh trigger
   useEffect(() => {
-    const fetchPurchaseOrders = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("purchase_orders")
-        .select(
-          `id, po_number, order_date, status, suppliers ( nama_supplier )`
-        )
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching purchase orders:", error);
-      } else {
-        setPurchaseOrders(data);
-      }
-      setLoading(false);
+    const initialFilters = {
+      searchTerm: "",
+      status: "semua",
+      supplier: "semua",
+      startDate: "",
+      endDate: "",
     };
+    handleFilterChange(initialFilters);
+  }, [refreshTrigger, handleFilterChange]);
 
-    fetchPurchaseOrders();
-    // --- PERUBAHAN: useEffect akan berjalan lagi jika refreshTrigger berubah ---
-  }, [refreshTrigger]);
-
-  // --- TAMBAHAN: Fungsi untuk menghapus pesanan ---
   const handleDeleteOrder = async (orderId, poNumber) => {
-    // 1. Minta konfirmasi dari pengguna untuk keamanan
     if (
-      window.confirm(
-        `Apakah Anda yakin ingin menghapus pesanan "${poNumber}"? Tindakan ini tidak bisa dibatalkan.`
-      )
+      window.confirm(`Apakah Anda yakin ingin menghapus pesanan "${poNumber}"?`)
     ) {
-      // 2. Lakukan proses hapus ke Supabase
       const { error } = await supabase
         .from("purchase_orders")
         .delete()
         .eq("id", orderId);
-
       if (error) {
         alert("Gagal menghapus pesanan: " + error.message);
       } else {
         alert("Pesanan berhasil dihapus.");
-        // 3. Picu refresh data untuk memperbarui tampilan
+        setRefreshTrigger((t) => t + 1);
+      }
+    }
+  };
+
+  // --- Fungsi baru untuk membatalkan pesanan ---
+  const handleCancelOrder = async (orderId, poNumber) => {
+    if (
+      window.confirm(
+        `Apakah Anda yakin ingin MEMBATALKAN pesanan "${poNumber}"?`
+      )
+    ) {
+      const { error } = await supabase
+        .from("purchase_orders")
+        .update({ status: "Dibatalkan" })
+        .eq("id", orderId);
+
+      if (error) {
+        alert("Gagal membatalkan pesanan: " + error.message);
+      } else {
+        alert("Pesanan berhasil dibatalkan.");
+        // Picu refresh data untuk memperbarui tampilan
         setRefreshTrigger((t) => t + 1);
       }
     }
   };
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case "Dipesan":
-        return "bg-yellow-100 text-yellow-800";
-      case "Selesai":
-        return "bg-green-100 text-green-800";
-      case "Dibatalkan":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-slate-100 text-slate-800";
-    }
+    if (status === "Dipesan") return "bg-yellow-100 text-yellow-800";
+    if (status === "Selesai") return "bg-green-100 text-green-800";
+    if (status === "Dibatalkan") return "bg-red-100 text-red-800";
+    return "bg-slate-100 text-slate-800";
   };
 
   return (
@@ -76,32 +104,33 @@ const Pembelian = () => {
             Manajemen Pembelian
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Lacak dan kelola semua pesanan pembelian Anda ke supplier.
+            Lacak dan kelola semua pesanan pembelian Anda.
           </p>
         </div>
         <Link
           to="/pembelian/baru"
-          className="mt-4 sm:mt-0 flex items-center justify-center gap-2 px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg shadow-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-opacity-75 transition-all duration-200"
+          className="mt-4 sm:mt-0 flex items-center justify-center gap-2 px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg shadow-md hover:bg-orange-600"
         >
           <FiPlus size={20} />
           <span>Buat Pesanan Baru</span>
         </Link>
       </div>
 
+      <PurchaseOrderFilter onFilterChange={handleFilterChange} />
+
       <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
         <h2 className="text-lg font-semibold text-slate-700 mb-4">
-          Daftar Pesanan (Purchase Orders)
+          Daftar Pesanan
         </h2>
-
         {loading ? (
           <p className="text-center text-slate-500 py-10">
             Memuat data pesanan...
           </p>
         ) : purchaseOrders.length === 0 ? (
           <div className="text-center py-10 border-2 border-dashed rounded-lg">
-            <p className="text-slate-500">Belum ada data pesanan pembelian.</p>
+            <p className="text-slate-500">Tidak ada data pesanan yang cocok.</p>
             <p className="text-sm text-slate-400 mt-2">
-              Klik "Buat Pesanan Baru" untuk memulai.
+              Coba sesuaikan filter atau reset.
             </p>
           </div>
         ) : (
@@ -114,7 +143,7 @@ const Pembelian = () => {
                 <div className="col-span-2 md:col-span-1">
                   <p className="font-bold text-blue-600">{order.po_number}</p>
                   <p className="text-sm text-slate-600">
-                    {order.suppliers?.nama_supplier || "Supplier Umum"}
+                    {order.nama_supplier || "Supplier Umum"}
                   </p>
                 </div>
                 <div>
@@ -134,18 +163,16 @@ const Pembelian = () => {
                   </span>
                 </div>
                 <div className="flex justify-end items-center gap-2">
+                  {/* Ikon Mata selalu tampil */}
                   <Link
                     to={`/pembelian/detail/${order.id}`}
                     className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-200 rounded-full transition-colors"
-                    title={
-                      order.status === "Dipesan"
-                        ? "Lihat & Terima Barang"
-                        : "Lihat Detail"
-                    }
+                    title="Lihat Detail"
                   >
                     <FiEye size={18} />
                   </Link>
 
+                  {/* Ikon Edit & Batal hanya untuk status 'Dipesan' */}
                   {order.status === "Dipesan" && (
                     <>
                       <Link
@@ -155,17 +182,30 @@ const Pembelian = () => {
                       >
                         <FiEdit size={18} />
                       </Link>
-                      {/* --- PERUBAHAN: onClick sekarang memanggil fungsi hapus --- */}
                       <button
                         onClick={() =>
-                          handleDeleteOrder(order.id, order.po_number)
+                          handleCancelOrder(order.id, order.po_number)
                         }
-                        className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
-                        title="Hapus Pesanan"
+                        className="p-2 text-slate-600 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
+                        title="Batalkan Pesanan"
                       >
-                        <FiTrash2 size={18} />
+                        <FiXCircle size={18} />
                       </button>
                     </>
+                  )}
+
+                  {/* PERBAIKAN BUG 2: Ikon Hapus untuk status 'Dipesan' ATAU 'Dibatalkan' */}
+                  {(order.status === "Dipesan" ||
+                    order.status === "Dibatalkan") && (
+                    <button
+                      onClick={() =>
+                        handleDeleteOrder(order.id, order.po_number)
+                      }
+                      className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
+                      title="Hapus Pesanan"
+                    >
+                      <FiTrash2 size={18} />
+                    </button>
                   )}
                 </div>
               </div>
