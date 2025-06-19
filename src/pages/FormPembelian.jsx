@@ -216,9 +216,7 @@ const FormPembelian = () => {
       nilai_konversi: product.nilai_konversi,
       unit_ordered: product.satuan_dasar || "Pcs",
       conversion_to_base: 1,
-    };
-    setOrderItems((prev) => [...prev, newItem]);
-    setSearchTerm("");
+    };setOrderItems((prev) => [...prev, newItem]);
   };
 
   const handleRemoveItem = (product_id) => {
