@@ -8,21 +8,20 @@ function ProductModal({
   supplierOptions,
   saveError,
   setSaveError,
-  allProducts, // <-- TAMBAHKAN INIINI
 }) {
   const initialProductState = {
     kode: "",
     nama: "",
     merek: "",
     kategori: "",
-    supplier_id: "",
+    supplier: "",
     harga_beli: "",
     harga_jual: "",
     stok: "",
     stok_min: "",
     catatan: "",
     status: "Aktif",
-    satuan_dasar: "",
+    satuan_dasar: "Pcs",
     satuan_pembelian: "",
     nilai_konversi: "",
   };
@@ -32,14 +31,23 @@ function ProductModal({
   useEffect(() => {
     if (isOpen) {
       if (productToEdit) {
-        const cleanState = {};
-        for (const key in initialProductState) {
-          const value = productToEdit[key];
-          cleanState[key] =
-            value !== null && value !== undefined ? String(value) : "";
-        }
-        cleanState.id = productToEdit.id;
-        setProduct(cleanState);
+        setProduct({
+          id: productToEdit.id,
+          kode: productToEdit.kode || "",
+          nama: productToEdit.nama || "",
+          merek: productToEdit.merek || "",
+          kategori: productToEdit.kategori || "",
+          supplier: productToEdit.supplier || "",
+          harga_beli: String(productToEdit.harga_beli || ""),
+          harga_jual: String(productToEdit.harga_jual || ""),
+          stok: String(productToEdit.stok || ""),
+          stok_min: String(productToEdit.stok_min || ""),
+          catatan: productToEdit.catatan || "",
+          status: productToEdit.status || "Aktif",
+          satuan_dasar: productToEdit.satuan_dasar || "Pcs",
+          satuan_pembelian: productToEdit.satuan_pembelian || "",
+          nilai_konversi: String(productToEdit.nilai_konversi || ""),
+        });
       } else {
         setProduct(initialProductState);
       }
@@ -57,8 +65,7 @@ function ProductModal({
       "nilai_konversi",
     ];
     if (numericFields.includes(id)) {
-      const rawValue = value.replace(/[^0-9]/g, "");
-      setProduct((prev) => ({ ...prev, [id]: rawValue }));
+      setProduct((prev) => ({ ...prev, [id]: value.replace(/[^0-9]/g, "") }));
     } else {
       setProduct((prev) => ({ ...prev, [id]: value }));
     }
@@ -66,40 +73,15 @@ function ProductModal({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    // --- LOGIKA VALIDASI KODE PRODUK DUPLIKAT ---
-    const isCodeDuplicate = allProducts.some((p) => {
-      // Jika mode Tambah Baru, cek apakah kode sudah ada.
-      if (!productToEdit) {
-        return p.kode.toLowerCase() === product.kode.toLowerCase();
-      }
-      // Jika mode Edit, cek apakah kode diubah menjadi kode yang sudah ada di produk LAIN.
-      if (productToEdit && p.id !== productToEdit.id) {
-        return p.kode.toLowerCase() === product.kode.toLowerCase();
-      }
-      return false;
-    });
-
-    if (isCodeDuplicate) {
-      setSaveError(
-        `Kode produk "${product.kode}" sudah digunakan. Silakan gunakan kode lain.`
-      );
-      return; // Hentikan proses simpan jika duplikat
-    }
-    // --- AKHIR VALIDASI ---
-
     const finalProduct = {
       ...product,
       harga_beli: Number(product.harga_beli) || 0,
       harga_jual: Number(product.harga_jual) || 0,
       stok: Number(product.stok) || 0,
       stok_min: Number(product.stok_min) || 0,
-      supplier_id: product.supplier_id === "" ? null : product.supplier_id,
-      satuan_dasar: product.satuan_dasar || "Pcs",
       nilai_konversi: Number(product.nilai_konversi) || 1,
     };
-
-    onSave(finalProduct); // Lanjutkan simpan jika semua validasi lolos
+    onSave(finalProduct);
   };
 
   const handleClose = () => {
@@ -251,22 +233,22 @@ function ProductModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label
-                  htmlFor="supplier_id"
+                  htmlFor="supplier"
                   className="block mb-1 text-sm font-medium text-slate-700"
                 >
                   Supplier
                 </label>
                 <select
-                  id="supplier_id"
-                  value={product.supplier_id}
+                  id="supplier"
+                  value={product.supplier}
                   onChange={handleChange}
                   className="w-full p-2 border rounded bg-white"
                 >
                   <option value="">-- Pilih Supplier --</option>
                   {supplierOptions &&
-                    supplierOptions.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>
-                        {supplier.nama_supplier}
+                    supplierOptions.map((s) => (
+                      <option key={s.id} value={s.nama_supplier}>
+                        {s.nama_supplier}
                       </option>
                     ))}
                 </select>
@@ -361,7 +343,8 @@ function ProductModal({
                   className="w-full p-2 border rounded bg-white"
                 >
                   <option value="Aktif">Aktif</option>
-                  <option value="Non-Aktif">Non-Aktif</option>
+                  <option value="Tidak Aktif">Tidak Aktif</option>
+                  <option value="Diarsipkan">Diarsipkan</option>
                 </select>
               </div>
               <div className="md:col-span-2">
