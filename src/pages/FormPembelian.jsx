@@ -1,5 +1,6 @@
+// src/pages/FormPembelian.jsx (Versi Final dengan Struktur useEffect yang Benar)
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import { FiSave, FiPlus, FiTrash2, FiSearch, FiFilter } from "react-icons/fi";
 import PurchaseFilterModal from "../components/PurchaseFilterModal.jsx";
@@ -22,6 +23,8 @@ const FormPembelian = () => {
   const { poId } = useParams();
   const isEditMode = Boolean(poId);
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedProduct = location.state?.requestedProduct;
 
   // State Utama
   const [orderItems, setOrderItems] = useState([]);
@@ -57,7 +60,6 @@ const FormPembelian = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
-      // Fetch semua opsi untuk filter dan dropdown
       const { data: suppliersData } = await supabase
         .from("suppliers")
         .select("id, nama_supplier, telepon");
@@ -125,6 +127,12 @@ const FormPembelian = () => {
   }, [poId, isEditMode]);
 
   useEffect(() => {
+    if (requestedProduct?.nama_produk_diminta) {
+      setSearchTerm(requestedProduct.nama_produk_diminta);
+    }
+  }, [requestedProduct]);
+
+  useEffect(() => {
     const searchProducts = async () => {
       if (
         !debouncedSearchTerm &&
@@ -148,10 +156,10 @@ const FormPembelian = () => {
         setFilteredProducts(data || []);
       }
     };
-    if (!loading) searchProducts();
-  }, [debouncedSearchTerm, activeFilters, loading]);
+    searchProducts();
+  }, [debouncedSearchTerm, activeFilters]);
 
-  // --- SEMUA HANDLER ---
+  // ... (SISA SEMUA FUNGSI HANDLER TETAP SAMA SEPERTI SEBELUMNYA) ...
   const handleOpenAddModal = () => {
     setProductToEdit(null);
     setProductSaveError("");
@@ -191,7 +199,7 @@ const FormPembelian = () => {
       }
       if (error) throw error;
       alert(
-        id ? "Produk berhasil diperbarui!" : "Produk berhasil ditambahkan!"
+        id ? "Produk berhasil diperbarui!" : "Produk berhasil ditambahkan!",
       );
       setIsProductModalOpen(false);
     } catch (error) {
@@ -216,12 +224,13 @@ const FormPembelian = () => {
       nilai_konversi: product.nilai_konversi,
       unit_ordered: product.satuan_dasar || "Pcs",
       conversion_to_base: 1,
-    };setOrderItems((prev) => [...prev, newItem]);
+    };
+    setOrderItems((prev) => [...prev, newItem]);
   };
 
   const handleRemoveItem = (product_id) => {
     setOrderItems((prev) =>
-      prev.filter((item) => item.product_id !== product_id)
+      prev.filter((item) => item.product_id !== product_id),
     );
   };
   const handleQuantityChange = (product_id, quantity) => {
@@ -230,15 +239,15 @@ const FormPembelian = () => {
       prev.map((item) =>
         item.product_id === product_id
           ? { ...item, quantity_ordered: newQuantity }
-          : item
-      )
+          : item,
+      ),
     );
   };
   const handleItemNoteChange = (product_id, note) => {
     setOrderItems((prev) =>
       prev.map((item) =>
-        item.product_id === product_id ? { ...item, catatan_item: note } : item
-      )
+        item.product_id === product_id ? { ...item, catatan_item: note } : item,
+      ),
     );
   };
 
@@ -261,7 +270,7 @@ const FormPembelian = () => {
           }
         }
         return item;
-      })
+      }),
     );
   };
 
@@ -299,7 +308,7 @@ const FormPembelian = () => {
         navigate("/pembelian");
       } else {
         const po_number = `PO-BJS-${new Date().getFullYear()}${String(
-          new Date().getMonth() + 1
+          new Date().getMonth() + 1,
         ).padStart(2, "0")}-${Date.now().toString().slice(-6)}`;
         const { data: newOrder, error: orderError } = await supabase
           .from("purchase_orders")
@@ -315,21 +324,35 @@ const FormPembelian = () => {
           .from("purchase_order_items")
           .insert(itemsToInsertPayload(newOrder.id));
         if (itemsError) throw itemsError;
+
+        // --- TAMBAHKAN BLOK IF BARU DI SINI ---
+        if (requestedProduct?.id) {
+          const { error: updateStatusError } = await supabase
+            .from("permintaan_pelanggan")
+            .update({ status: "Sudah Dipesan" })
+            .eq("id", requestedProduct.id);
+
+          if (updateStatusError) {
+            // Jika gagal, cukup tampilkan di console tanpa menghentikan alur utama
+            console.error(
+              "Gagal update status permintaan:",
+              updateStatusError.message,
+            );
+          }
+        }
+        // --- AKHIR BLOK IF BARU ---
         const supplier = supplierOptions.find((s) => s.id === selectedSupplier);
         const completeOrderData = {
           po_number: po_number,
           order_date: newOrder.order_date,
           supplier_name: supplier ? supplier.nama_supplier : "Supplier Umum",
           supplier_phone: supplier ? supplier.telepon : null,
-          // --- PERUBAHAN DI SINI ---
-          // Kita format ulang data item agar sesuai dengan yang dibutuhkan modal
           items: orderItems.map((item) => ({
             nama: item.nama,
             kode: item.kode,
             merek: item.merek,
             catatan_item: item.catatan_item,
             quantity_ordered: item.quantity_ordered,
-            // Ambil satuan yang DIPILIH pengguna dari dropdown
             satuan: item.unit_ordered,
           })),
         };
@@ -353,6 +376,7 @@ const FormPembelian = () => {
 
   if (loading) return <p className="text-center p-8">Memuat data...</p>;
 
+  // ... (SISA KODE JSX TETAP SAMA) ...
   return (
     <>
       <ProductModal
@@ -592,8 +616,8 @@ const FormPembelian = () => {
               {isSaving
                 ? "Menyimpan..."
                 : isEditMode
-                ? "Simpan Perubahan"
-                : "Simpan Pesanan"}
+                  ? "Simpan Perubahan"
+                  : "Simpan Pesanan"}
             </span>
           </button>
         </div>
@@ -601,5 +625,4 @@ const FormPembelian = () => {
     </>
   );
 };
-
 export default FormPembelian;

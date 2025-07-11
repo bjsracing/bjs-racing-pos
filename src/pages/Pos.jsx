@@ -1,5 +1,4 @@
-// src/pages/Pos.jsx (Versi Final Lengkap dengan UI/UX Mobile & Semua Fungsi)
-
+// src/pages/Pos.jsx
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabaseClient.js";
 import {
@@ -14,9 +13,11 @@ import {
   FiShoppingCart,
   FiChevronUp,
   FiChevronDown,
+  FiEdit,
 } from "react-icons/fi";
 import HeldTransactionsModal from "../components/HeldTransactionsModal.jsx";
-import ReceiptModal from "../components/ReceiptModal.jsx"; // <-- TAMBAHKAN INI
+import ReceiptModal from "../components/ReceiptModal.jsx";
+import CustomerRequestModal from "../components/CustomerRequestModal.jsx";
 
 // Helper Hook untuk debounce
 function useDebounce(value, delay) {
@@ -247,6 +248,7 @@ function Pos() {
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isCartExpanded, setIsCartExpanded] = useState(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
   const forceRefresh = () => setRefreshTrigger((t) => t + 1);
 
@@ -414,6 +416,7 @@ function Pos() {
   };
   const handleRemoveFromCart = (id) =>
     setCart((curr) => curr.filter((i) => i.id !== id));
+
   useEffect(() => {
     let sub = 0,
       disc = 0;
@@ -428,14 +431,12 @@ function Pos() {
     setTotalDiscount(disc);
     setFinalTotal(sub - disc);
   }, [cart]);
+
   useEffect(() => {
     const paid = parseFloat(cashPaid) || 0;
-    if (paid >= finalTotal) {
-      setChange(paid - finalTotal);
-    } else {
-      setChange(0);
-    }
+    setChange(paid >= finalTotal ? paid - finalTotal : 0);
   }, [cashPaid, finalTotal]);
+
   const resetPage = () => {
     setCart([]);
     setProductSearch("");
@@ -469,7 +470,6 @@ function Pos() {
       sisa_hutang: isPaid ? 0 : finalTotal - paid,
     };
 
-    // Simpan transaksi dan dapatkan data transaksi yang baru dibuat kembali
     const { data: newTransaction, error } = await supabase
       .from("transactions")
       .insert(trxData)
@@ -482,7 +482,6 @@ function Pos() {
       return;
     }
 
-    // Kurangi stok produk
     for (const item of cart) {
       await supabase
         .from("products")
@@ -496,21 +495,15 @@ function Pos() {
     }
 
     setIsSubmitting(false);
-
-    // --- PERUBAHAN INTI ADA DI SINI ---
     const successMsg = isPaid
       ? `Transaksi Lunas! Kembalian: Rp ${new Intl.NumberFormat("id-ID").format(change)}`
       : `Transaksi berhasil disimpan sebagai hutang.`;
 
-    // Ganti alert standar dengan window.confirm untuk memberi pilihan
     if (
       window.confirm(successMsg + "\n\nApakah Anda ingin menampilkan struk?")
     ) {
-      // Jika user klik "OK", kita siapkan data untuk modal dan menampilkannya.
-      // Kita gabungkan data transaksi dari DB dengan data pelanggan dari state
       setReceiptData({ ...newTransaction, customer_data: selectedCustomer });
     } else {
-      // Jika user klik "Cancel", kita langsung reset halaman seperti biasa
       resetPage();
     }
   };
@@ -573,13 +566,16 @@ function Pos() {
 
   return (
     <div className="md:flex md:flex-row md:gap-8 h-[calc(100vh-4rem)] p-4 relative bg-slate-50 overflow-hidden">
+      <CustomerRequestModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+      />
       <HeldTransactionsModal
         isOpen={isResumeModalOpen}
         onClose={() => setIsResumeModalOpen(false)}
         transactions={heldTransactions}
         onResume={handleResumeTransaction}
       />
-      {/* --- TAMBAHKAN KOMPONEN MODAL DI SINI --- */}
       <ReceiptModal
         isOpen={receiptData !== null}
         onClose={() => {
@@ -595,24 +591,31 @@ function Pos() {
           footerNote: "Belanja Gak Pake Drama, Disini Tempatnya!",
         }}
       />
-
-      {/* Kolom Kiri */}
       <div className="w-full md:w-3/5 flex flex-col h-full">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-start gap-4 mb-4">
           <h1 className="text-3xl font-bold">Point of Sale</h1>
-          <button
-            onClick={() => setIsResumeModalOpen(true)}
-            disabled={heldTransactions.length === 0}
-            className="relative flex items-center gap-2 bg-white border border-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FiClock />
-            <span>Lanjutkan</span>
-            {heldTransactions.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                {heldTransactions.length}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setIsRequestModalOpen(true)}
+              className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-50"
+            >
+              <FiEdit />
+              <span>Catat Permintaan</span>
+            </button>
+            <button
+              onClick={() => setIsResumeModalOpen(true)}
+              disabled={heldTransactions.length === 0}
+              className="relative flex items-center gap-2 bg-white border border-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiClock />
+              <span>Lanjutkan</span>
+              {heldTransactions.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                  {heldTransactions.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
         <div className="bg-white rounded-lg shadow p-4 mb-4">
           {!selectedCustomer ? (
@@ -745,14 +748,10 @@ function Pos() {
           </div>
         </fieldset>
       </div>
-
-      {/* Kolom Kanan (Desktop) */}
       <div className="hidden md:flex md:w-2/5 bg-white rounded-lg shadow p-6 flex-col">
         <h2 className="text-2xl font-bold border-b pb-4 mb-4">Keranjang</h2>
         <CartComponent {...cartProps} />
       </div>
-
-      {/* Floating Cart (Mobile) */}
       <div
         className={`md:hidden fixed bottom-0 left-0 right-0 bg-white shadow-2xl rounded-t-2xl transition-transform duration-300 ease-in-out ${isCartExpanded ? "translate-y-0" : "translate-y-[calc(100%-7.5rem)]"} z-20 border-t`}
       >

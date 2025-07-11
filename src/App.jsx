@@ -17,6 +17,7 @@ import TransactionHistory from "./pages/TransactionHistory.jsx";
 import StockHistory from "./pages/StockHistory.jsx";
 import Expenses from "./pages/Expenses.jsx";
 import Reports from "./pages/Reports.jsx";
+import PermintaanPelanggan from "./pages/PermintaanPelanggan.jsx";
 import LaporanProdukTerlaris from "./pages/LaporanProdukTerlaris";
 import LaporanProdukPilok from "./pages/LaporanProdukPilok";
 
@@ -94,6 +95,7 @@ function App() {
         />{" "}
         {/* <-- 2. TAMBAHKAN ROUTE DINAMIS INI */}
         <Route path="pelanggan" element={<Customers />} />
+        <Route path="permintaan-pelanggan" element={<PermintaanPelanggan />} />
         <Route path="pengeluaran" element={<Expenses />} />
         <Route path="laporan" element={<Reports />} />
         <Route

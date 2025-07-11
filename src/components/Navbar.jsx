@@ -9,6 +9,7 @@ import {
   FiFileText,
   FiUsers,
   FiShoppingCart,
+  FiStar,
 } from "react-icons/fi"; // <-- IMPORT IKON BARU
 import { supabase } from "../supabaseClient.js";
 
@@ -25,6 +26,11 @@ function Navbar({ isOpen, onLinkClick }) {
       icon: <FiShoppingCart />,
     },
     { name: "Manajemen Pelanggan", path: "/pelanggan", icon: <FiUsers /> }, // <-- LINK MENU BARU
+    {
+      name: "Permintaan Pelanggan",
+      path: "/permintaan-pelanggan",
+      icon: <FiStar />,
+    },
     {
       name: "Manajemen Pengeluaran",
       path: "/pengeluaran",
