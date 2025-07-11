@@ -17,6 +17,8 @@ import TransactionHistory from "./pages/TransactionHistory.jsx";
 import StockHistory from "./pages/StockHistory.jsx";
 import Expenses from "./pages/Expenses.jsx";
 import Reports from "./pages/Reports.jsx";
+import LaporanProdukTerlaris from "./pages/LaporanProdukTerlaris";
+import LaporanProdukPilok from "./pages/LaporanProdukPilok";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -94,6 +96,11 @@ function App() {
         <Route path="pelanggan" element={<Customers />} />
         <Route path="pengeluaran" element={<Expenses />} />
         <Route path="laporan" element={<Reports />} />
+        <Route
+          path="laporan-produk-terlaris"
+          element={<LaporanProdukTerlaris />}
+        />
+        <Route path="laporan-produk-pilok" element={<LaporanProdukPilok />} />
         <Route path="histori-transaksi" element={<TransactionHistory />} />
         <Route path="histori-stok" element={<StockHistory />} />
         <Route path="*" element={<Dashboard />} />
