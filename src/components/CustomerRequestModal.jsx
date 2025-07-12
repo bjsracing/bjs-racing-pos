@@ -6,6 +6,7 @@ import { FiX } from "react-icons/fi";
 function CustomerRequestModal({ isOpen, onClose }) {
   const [productName, setProductName] = useState("");
   const [notes, setNotes] = useState("");
+  const [kategori, setKategori] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -22,6 +23,7 @@ function CustomerRequestModal({ isOpen, onClose }) {
       const { error } = await supabase.from("permintaan_pelanggan").insert({
         nama_produk_diminta: productName,
         catatan: notes,
+        kategori: kategori,
       });
 
       if (error) throw error;
@@ -29,6 +31,7 @@ function CustomerRequestModal({ isOpen, onClose }) {
       alert("Permintaan berhasil dicatat!");
       setProductName("");
       setNotes("");
+      setKategori("");
       onClose();
     } catch (error) {
       console.error("Gagal mencatat permintaan:", error);
@@ -84,6 +87,23 @@ function CustomerRequestModal({ isOpen, onClose }) {
                 rows="3"
                 className="w-full p-2 border rounded-lg"
               ></textarea>
+            </div>
+            {/* ... (setelah div untuk input Catatan) ... */}
+            <div>
+              <label
+                htmlFor="kategori"
+                className="block text-sm font-medium text-slate-700 mb-1"
+              >
+                Kategori (Opsional)
+              </label>
+              <input
+                id="kategori"
+                type="text"
+                value={kategori}
+                onChange={(e) => setKategori(e.target.value)}
+                placeholder="Cth: Onderdil, Oli, Pilok"
+                className="w-full p-2 border rounded-lg"
+              />
             </div>
           </div>
           <div className="p-4 bg-slate-50 border-t rounded-b-lg flex justify-end">
