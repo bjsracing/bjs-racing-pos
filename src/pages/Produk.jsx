@@ -41,7 +41,7 @@ function Produk() {
     status: "semua",
   });
   const [showLowStockOnly, setShowLowStockOnly] = useState(
-    () => location.state?.filter === "stok_rendah"
+    () => location.state?.filter === "stok_rendah",
   );
   const [merekOptions, setMerekOptions] = useState([]);
   const [kategoriOptions, setKategoriOptions] = useState([]);
@@ -92,9 +92,8 @@ function Produk() {
       if (suppliersData) setSupplierOptions(suppliersData);
 
       // Panggil RPC untuk Merek
-      const { data: mereksData, error: mereksError } = await supabase.rpc(
-        "get_distinct_merek"
-      );
+      const { data: mereksData, error: mereksError } =
+        await supabase.rpc("get_distinct_merek");
       if (mereksError) console.error("Error fetching merek:", mereksError);
       else if (mereksData) {
         setMerekOptions(mereksData.map((item) => item.merek));
@@ -102,7 +101,7 @@ function Produk() {
 
       // Panggil RPC untuk Kategori
       const { data: kategorisData, error: kategorisError } = await supabase.rpc(
-        "get_distinct_kategori"
+        "get_distinct_kategori",
       );
       if (kategorisError)
         console.error("Error fetching kategori:", kategorisError);
@@ -136,7 +135,7 @@ function Produk() {
     try {
       const { id, ...dataToSave } = productData;
       const selectedSupplier = supplierOptions.find(
-        (opt) => opt.nama_supplier === dataToSave.supplier
+        (opt) => opt.nama_supplier === dataToSave.supplier,
       );
       const finalDbData = {
         ...dataToSave,
@@ -159,7 +158,7 @@ function Produk() {
       }
 
       alert(
-        id ? "Produk berhasil diperbarui!" : "Produk berhasil ditambahkan!"
+        id ? "Produk berhasil diperbarui!" : "Produk berhasil ditambahkan!",
       );
       setIsModalOpen(false);
       forceRefresh();
@@ -167,7 +166,7 @@ function Produk() {
       let errorMessage = error.message;
       if (
         error.message.includes(
-          'duplicate key value violates unique constraint "products_kode_key"'
+          'duplicate key value violates unique constraint "products_kode_key"',
         )
       ) {
         errorMessage = `Kode produk "${productData.kode}" sudah ada. Silakan gunakan kode lain.`;
@@ -181,7 +180,7 @@ function Produk() {
   const handleDeleteProduct = async (productId, productName) => {
     if (
       window.confirm(
-        `Yakin ingin mengarsipkan produk "${productName}"? Produk ini akan disembunyikan dari pencarian dan POS, namun riwayat transaksinya akan tetap aman.`
+        `Yakin ingin mengarsipkan produk "${productName}"? Produk ini akan disembunyikan dari pencarian dan POS, namun riwayat transaksinya akan tetap aman.`,
       )
     ) {
       const { error } = await supabase
@@ -329,8 +328,7 @@ function Produk() {
           <tbody>
             {products.length > 0 ? (
               products.map((product) => {
-                const isLowStock =
-                  product.stok > 0 && product.stok <= product.stok_min;
+                const isLowStock = product.stok <= product.stok_min;
                 return (
                   <tr
                     key={product.id}
@@ -354,13 +352,13 @@ function Produk() {
                     <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
                       Rp{" "}
                       {new Intl.NumberFormat("id-ID").format(
-                        product.harga_beli
+                        product.harga_beli,
                       )}
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
                       Rp{" "}
                       {new Intl.NumberFormat("id-ID").format(
-                        product.harga_jual
+                        product.harga_jual,
                       )}
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm text-center">
@@ -423,8 +421,7 @@ function Produk() {
       <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
         {products.length > 0 ? (
           products.map((product) => {
-            const isLowStock =
-              product.stok > 0 && product.stok <= product.stok_min;
+            const isLowStock = product.stok <= product.stok_min;
             return (
               <div
                 key={product.id}
@@ -478,7 +475,7 @@ function Produk() {
                       <p className="text-lg font-bold text-orange-500">
                         Rp{" "}
                         {new Intl.NumberFormat("id-ID").format(
-                          product.harga_jual
+                          product.harga_jual,
                         )}
                       </p>
                     </div>
