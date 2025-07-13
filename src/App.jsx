@@ -20,6 +20,7 @@ import Reports from "./pages/Reports.jsx";
 import PermintaanPelanggan from "./pages/PermintaanPelanggan.jsx";
 import LaporanProdukTerlaris from "./pages/LaporanProdukTerlaris";
 import LaporanProdukPilok from "./pages/LaporanProdukPilok";
+import RiwayatProduk from "./pages/RiwayatProduk.jsx";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -82,7 +83,10 @@ function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="pos" element={<Pos />} />
-        <Route path="produk" element={<Produk />} />
+        <Route path="produk">
+          <Route index element={<Produk />} />
+          <Route path="riwayat/:productId" element={<RiwayatProduk />} />
+        </Route>
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="pembelian" element={<Pembelian />} />{" "}
         {/* <-- 2. TAMBAHKAN ROUTE INI */}

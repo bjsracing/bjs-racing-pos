@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import {
   FiEdit,
@@ -8,6 +8,7 @@ import {
   FiSearch,
   FiFilter,
   FiAlertTriangle,
+  FiClock,
 } from "react-icons/fi";
 import ProductModal from "../components/ProductModal.jsx";
 import ViewNoteModal from "../components/ViewNoteModal.jsx";
@@ -390,20 +391,31 @@ function Produk() {
                       </span>
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm text-center whitespace-nowrap">
-                      <button
-                        onClick={() => handleOpenEditModal(product)}
-                        className="text-blue-500 hover:text-blue-700 mr-3"
-                      >
-                        <FiEdit size={18} />
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleDeleteProduct(product.id, product.nama)
-                        }
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <FiTrash2 size={18} />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditModal(product)}
+                          className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-slate-100"
+                          title="Edit Produk"
+                        >
+                          <FiEdit size={18} />
+                        </button>
+                        <Link
+                          to={`/produk/riwayat/${product.id}`}
+                          className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-slate-100"
+                          title="Lihat Riwayat"
+                        >
+                          <FiClock size={18} />
+                        </Link>
+                        <button
+                          onClick={() =>
+                            handleDeleteProduct(product.id, product.nama)
+                          }
+                          className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-100"
+                          title="Arsipkan Produk"
+                        >
+                          <FiTrash2 size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -484,14 +496,23 @@ function Produk() {
                     <button
                       onClick={() => handleOpenEditModal(product)}
                       className="text-blue-500 hover:text-blue-700 p-2"
+                      title="Edit Produk"
                     >
                       <FiEdit size={20} />
                     </button>
+                    <Link
+                      to={`/produk/riwayat/${product.id}`}
+                      className="text-gray-500 hover:text-gray-700 p-2"
+                      title="Lihat Riwayat"
+                    >
+                      <FiClock size={20} />
+                    </Link>
                     <button
                       onClick={() =>
                         handleDeleteProduct(product.id, product.nama)
                       }
                       className="text-red-500 hover:text-red-700 p-2"
+                      title="Arsipkan Produk"
                     >
                       <FiTrash2 size={20} />
                     </button>
