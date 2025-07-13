@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient.js";
 import {
   FiSearch,
   FiPlusCircle,
+  FiPlus,
   FiMinusCircle,
   FiTrash2,
   FiUserCheck,
@@ -31,29 +32,53 @@ function useDebounce(value, delay) {
   return debouncedValue;
 }
 
-// Komponen kecil untuk Kartu Produk di daftar pencarian
-const ProductCard = ({ product, onAddToCart }) => (
-  <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-    <div>
-      <p className="font-bold text-slate-800">{product.nama}</p>
-      <p className="text-xs text-slate-500 mt-1">Kode: {product.kode || "-"}</p>
-      <p className="text-sm text-slate-600">{product.merek || "Tanpa Merek"}</p>
-      <p className="text-sm text-slate-600 mt-1">Stok: {product.stok}</p>
+// Kartu Produk dengan interaksi yang lebih dinamis dan profesional
+const ProductCard = ({ product, onAddToCart }) => {
+  return (
+    // 'group' ditambahkan agar elemen di dalamnya bisa bereaksi saat kartu di-hover
+    // 'hover:-translate-y-1' untuk efek kartu terangkat
+    <div className="group relative bg-gradient-to-br from-slate-100 to-slate-50 hover:from-orange-100 hover:to-orange-50 border-2 border-transparent hover:border-orange-400 rounded-2xl p-4 flex flex-col justify-between shadow-md hover:shadow-xl transition-all duration-300 ease-in-out overflow-hidden hover:-translate-y-1">
+      {/* Bagian Informasi Produk */}
+      <div className="flex-grow z-10">
+        <p className="font-bold text-slate-800 text-lg leading-tight">
+          {product.nama}
+        </p>
+        <p className="text-base font-semibold text-blue-600 italic mt-1">
+          {product.merek || "Tanpa Merek"}
+        </p>
+        <p className="text-base text-slate-500 italic mt-1">
+          {" "}
+          {product.kode || "-"}
+        </p>
+        <p
+          className={`mt-2 font-bold ${product.stok <= product.stok_min ? "text-red-600" : "text-slate-700"}`}
+        >
+          <span className="text-sm">Stok: </span>
+          <span className="text-base">{product.stok}</span>
+        </p>
+      </div>
+
+      {/* Bagian Harga */}
+      <div className="mt-1 pt-4 border-t border-orange-400 z-10">
+        <p className="text-xl font-bold text-orange-500">
+          Rp{new Intl.NumberFormat("id-ID").format(product.harga_jual)}
+        </p>
+      </div>
+
+      {/* Tombol Aksi Melingkar */}
+      <div className="absolute bottom-4 right-4 z-20">
+        <button
+          onClick={() => onAddToCart(product)}
+          // Tombol berubah warna saat kartu di-hover (group-hover)
+          className="w-9 h-9 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-lg transition-all transform hover:scale-110 group-hover:bg-green-500 group-hover:text-white disabled:bg-slate-300 disabled:text-slate-500 disabled:scale-100"
+          disabled={product.stok === 0}
+        >
+          <FiShoppingCart size={20} />
+        </button>
+      </div>
     </div>
-    <div className="flex justify-between items-center mt-2">
-      <p className="font-semibold text-orange-500">
-        Rp {new Intl.NumberFormat("id-ID").format(product.harga_jual)}
-      </p>
-      <button
-        onClick={() => onAddToCart(product)}
-        className="text-orange-500 disabled:text-slate-300"
-        disabled={product.stok === 0}
-      >
-        <FiPlusCircle size={24} />
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 // Komponen kecil untuk isi Keranjang, agar bisa dipakai ulang di desktop & mobile
 const CartComponent = ({
@@ -249,6 +274,8 @@ function Pos() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+
+  const [activeQuickFilter, setActiveQuickFilter] = useState("semua");
 
   const forceRefresh = () => setRefreshTrigger((t) => t + 1);
 
@@ -549,6 +576,18 @@ function Pos() {
     forceRefresh();
   };
 
+  const handleQuickFilterClick = (brand) => {
+    // Jika tombol yang sama diklik lagi, reset filter
+    if (brand === activeQuickFilter) {
+      setActiveFilters({ merek: "semua", kategori: "semua" });
+      setActiveQuickFilter("semua");
+    } else {
+      // Terapkan filter kategori 'Pilok' dan merek sesuai tombol
+      setActiveFilters({ merek: brand, kategori: "Pilok" });
+      setActiveQuickFilter(brand);
+    }
+  };
+
   const cartProps = {
     selectedCustomer,
     cart,
@@ -597,7 +636,7 @@ function Pos() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => setIsRequestModalOpen(true)}
-              className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-50"
+              className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-green-500"
             >
               <FiEdit />
               <span>Catat Permintaan</span>
@@ -617,7 +656,7 @@ function Pos() {
             </button>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 mb-4">
+        <div className="bg-white rounded-lg shadow p-2 mb-2">
           {!selectedCustomer ? (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -684,17 +723,7 @@ function Pos() {
           disabled={!selectedCustomer}
           className="flex flex-col flex-1 min-h-0"
         >
-          <div className="relative mb-2">
-            <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Cari nama atau kode produk..."
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full p-2 pl-10 border rounded-lg"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-1">
             <select
               value={activeFilters.merek}
               onChange={(e) =>
@@ -727,6 +756,71 @@ function Pos() {
               ))}
             </select>
           </div>
+
+          {/* BLOK BARU TANPA .MAP() */}
+          <div className="mb-1 p-1 bg-slate-100 rounded-lg">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {/* Tombol DITON */}
+              <button
+                onClick={() => handleQuickFilterClick("DITON")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
+                  activeQuickFilter === "DITON"
+                    ? "bg-[#FBAC18] text-black shadow-md"
+                    : "bg-white text-slate-700 hover:bg-[#FBAC18] hover:text-black"
+                }`}
+              >
+                DITON
+              </button>
+
+              {/* Tombol NIPPON PAINT */}
+              <button
+                onClick={() => handleQuickFilterClick("NIPPON PAINT")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
+                  activeQuickFilter === "NIPPON PAINT"
+                    ? "bg-black text-white shadow-md"
+                    : "bg-white text-slate-700 hover:bg-black hover:text-white"
+                }`}
+              >
+                NIPPON PAINT
+              </button>
+
+              {/* Tombol SAMURAI (Silver direpresentasikan dengan abu-abu) */}
+              <button
+                onClick={() => handleQuickFilterClick("SAMURAI")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
+                  activeQuickFilter === "SAMURAI"
+                    ? "bg-slate-600 text-white shadow-md"
+                    : "bg-white text-slate-700 hover:bg-slate-600 hover:text-white"
+                }`}
+              >
+                SAMURAI
+              </button>
+
+              {/* Tombol SAPPORO */}
+              <button
+                onClick={() => handleQuickFilterClick("SAPPORO")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
+                  activeQuickFilter === "SAPPORO"
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-white text-slate-700 hover:bg-blue-600 hover:text-white"
+                }`}
+              >
+                SAPPORO
+              </button>
+            </div>
+          </div>
+
+          <div className="relative mb-2">
+            <FiSearch className="absolute top-1/2 left-3 transform -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari nama atau kode produk..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              className="w-full p-2 pl-10 border rounded-lg"
+            />
+          </div>
+
           <div className="flex-1 bg-white rounded-lg shadow-inner p-4 overflow-y-auto pb-32 md:pb-4">
             {loadingProducts && (
               <p className="text-center text-slate-500">Memuat...</p>
