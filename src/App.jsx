@@ -7,10 +7,15 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Produk from "./pages/Produk.jsx";
 import Pos from "./pages/Pos.jsx";
+import PenjualanGrosir from "./pages/PenjualanGrosir.jsx";
+import FormPesananGrosir from "./pages/FormPesananGrosir.jsx";
+import DetailPesananGrosir from "./pages/DetailPesananGrosir.jsx";
+import FormNotaGrosir from "./pages/FormNotaGrosir.jsx";
 import Suppliers from "./pages/Suppliers.jsx";
 import Pembelian from "./pages/Pembelian.jsx"; // <-- 1. IMPORT HALAMAN BARU
 import FormPembelian from "./pages/FormPembelian.jsx"; // <-- 1. IMPORT HALAMAN FORMULIR
 import DetailPembelian from "./pages/DetailPembelian.jsx"; // <-- 1. IMPORT HALAMAN BARU
+import DetailNotaPage from "./pages/DetailNotaPage.jsx";
 import Customers from "./pages/Customers.jsx";
 import Login from "./pages/Login.jsx";
 import TransactionHistory from "./pages/TransactionHistory.jsx";
@@ -21,6 +26,7 @@ import PermintaanPelanggan from "./pages/PermintaanPelanggan.jsx";
 import LaporanProdukTerlaris from "./pages/LaporanProdukTerlaris";
 import LaporanProdukPilok from "./pages/LaporanProdukPilok";
 import RiwayatProduk from "./pages/RiwayatProduk.jsx";
+import CetakDokumenPage from "./pages/CetakDokumenPage.jsx";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -70,9 +76,22 @@ function App() {
     );
   }
 
+  // Ganti seluruh blok <Routes> Anda dengan ini
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+
+      {/* RUTE UNTUK HALAMAN CETAK (DI LUAR MAIN LAYOUT) */}
+      <Route
+        path="/cetak/:tipe/:id"
+        element={
+          <ProtectedRoute session={session}>
+            <CetakDokumenPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* RUTE UNTUK SEMUA HALAMAN DENGAN TATA LETAK UTAMA */}
       <Route
         path="/"
         element={
@@ -83,21 +102,28 @@ function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="pos" element={<Pos />} />
+
+        <Route path="penjualan-grosir">
+          <Route index element={<PenjualanGrosir />} />
+          <Route path="baru" element={<FormPesananGrosir />} />
+          <Route path="edit/:soId" element={<FormPesananGrosir />} />
+          <Route path="detail/:soId" element={<DetailPesananGrosir />} />
+          <Route path="nota/baru/:orderId" element={<FormNotaGrosir />} />
+        </Route>
+
+        {/* Path untuk detail nota diperbaiki dan dipindah ke sini */}
+        <Route path="nota/detail/:invoiceId" element={<DetailNotaPage />} />
+
         <Route path="produk">
           <Route index element={<Produk />} />
           <Route path="riwayat/:productId" element={<RiwayatProduk />} />
         </Route>
+
         <Route path="suppliers" element={<Suppliers />} />
-        <Route path="pembelian" element={<Pembelian />} />{" "}
-        {/* <-- 2. TAMBAHKAN ROUTE INI */}
-        <Route path="pembelian/baru" element={<FormPembelian />} />{" "}
-        {/* <-- 2. TAMBAHKAN ROUTE INI */}
+        <Route path="pembelian" element={<Pembelian />} />
+        <Route path="pembelian/baru" element={<FormPembelian />} />
         <Route path="pembelian/edit/:poId" element={<FormPembelian />} />
-        <Route
-          path="pembelian/detail/:poId"
-          element={<DetailPembelian />}
-        />{" "}
-        {/* <-- 2. TAMBAHKAN ROUTE DINAMIS INI */}
+        <Route path="pembelian/detail/:poId" element={<DetailPembelian />} />
         <Route path="pelanggan" element={<Customers />} />
         <Route path="permintaan-pelanggan" element={<PermintaanPelanggan />} />
         <Route path="pengeluaran" element={<Expenses />} />
@@ -109,6 +135,7 @@ function App() {
         <Route path="laporan-produk-pilok" element={<LaporanProdukPilok />} />
         <Route path="histori-transaksi" element={<TransactionHistory />} />
         <Route path="histori-stok" element={<StockHistory />} />
+
         <Route path="*" element={<Dashboard />} />
       </Route>
     </Routes>

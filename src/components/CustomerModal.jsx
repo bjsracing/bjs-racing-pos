@@ -7,6 +7,8 @@ function CustomerModal({ isOpen, onClose, onSave, customerToEdit }) {
     alamat: "",
     catatan: "",
     status: "Aktif",
+    tipe_pelanggan: "Eceran",
+    nama_pemilik: "",
   });
 
   useEffect(() => {
@@ -19,6 +21,8 @@ function CustomerModal({ isOpen, onClose, onSave, customerToEdit }) {
         alamat: "",
         catatan: "",
         status: "Aktif",
+        tipe_pelanggan: "Eceran",
+        nama_pemilik: "",
       });
     }
   }, [customerToEdit, isOpen]);
@@ -48,7 +52,7 @@ function CustomerModal({ isOpen, onClose, onSave, customerToEdit }) {
                 htmlFor="nama_pelanggan"
                 className="block mb-1 text-sm font-medium text-slate-700"
               >
-                Nama Pelanggan
+                Nama Pelanggan / Toko
               </label>
               <input
                 id="nama_pelanggan"
@@ -59,6 +63,42 @@ function CustomerModal({ isOpen, onClose, onSave, customerToEdit }) {
                 required
               />
             </div>
+
+            {/* --- TAMBAHKAN DUA BLOK DIV DI BAWAH INI --- */}
+            <div>
+              <label
+                htmlFor="nama_pemilik"
+                className="block mb-1 text-sm font-medium text-slate-700"
+              >
+                Nama Pemilik (Opsional)
+              </label>
+              <input
+                id="nama_pemilik"
+                type="text"
+                value={customer.nama_pemilik || ""}
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="tipe_pelanggan"
+                className="block mb-1 text-sm font-medium text-slate-700"
+              >
+                Tipe Pelanggan
+              </label>
+              <select
+                id="tipe_pelanggan"
+                value={customer.tipe_pelanggan}
+                onChange={handleChange}
+                className="w-full p-2 border rounded bg-white"
+              >
+                <option value="Eceran">Eceran</option>
+                <option value="Grosir">Grosir (Mitra)</option>
+              </select>
+            </div>
+            {/* --- AKHIR BLOK TAMBAHAN --- */}
+
             <div>
               <label
                 htmlFor="telepon"

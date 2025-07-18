@@ -24,6 +24,8 @@ function ProductModal({
     satuan_dasar: "Pcs",
     satuan_pembelian: "",
     nilai_konversi: "",
+    ukuran: "",
+    harga_grosir: "",
   };
 
   const [product, setProduct] = useState(initialProductState);
@@ -47,6 +49,8 @@ function ProductModal({
           satuan_dasar: productToEdit.satuan_dasar || "Pcs",
           satuan_pembelian: productToEdit.satuan_pembelian || "",
           nilai_konversi: String(productToEdit.nilai_konversi || ""),
+          ukuran: productToEdit.ukuran || "",
+          harga_grosir: String(productToEdit.harga_grosir || ""),
         });
       } else {
         setProduct(initialProductState);
@@ -63,6 +67,7 @@ function ProductModal({
       "stok",
       "stok_min",
       "nilai_konversi",
+      "harga_grosir",
     ];
     if (numericFields.includes(id)) {
       setProduct((prev) => ({ ...prev, [id]: value.replace(/[^0-9]/g, "") }));
@@ -80,6 +85,7 @@ function ProductModal({
       stok: Number(product.stok) || 0,
       stok_min: Number(product.stok_min) || 0,
       nilai_konversi: Number(product.nilai_konversi) || 1,
+      harga_grosir: Number(product.harga_grosir) || 0,
     };
     onSave(finalProduct);
   };
@@ -161,6 +167,43 @@ function ProductModal({
                 className="w-full p-2 border rounded"
               />
             </div>
+            <div>
+              <label
+                htmlFor="ukuran"
+                className="block mb-1 text-sm font-medium text-slate-700"
+              >
+                Ukuran (Cth: 150ml, 300ml)
+              </label>
+              <input
+                id="ukuran"
+                type="text"
+                value={product.ukuran || ""}
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+                placeholder="Contoh: 150ml"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="harga_grosir"
+                className="block mb-1 text-sm font-medium text-slate-700"
+              >
+                Harga Grosir Default (Rp)
+              </label>
+              <input
+                id="harga_grosir"
+                type="text"
+                value={
+                  product.harga_grosir
+                    ? new Intl.NumberFormat("id-ID").format(
+                        product.harga_grosir,
+                      )
+                    : ""
+                }
+                onChange={handleChange}
+                className="w-full p-2 border rounded"
+              />
+            </div>
           </div>
           <div className="mt-6 pt-4 border-t">
             <h3 className="text-lg font-semibold mb-2 text-slate-800">
@@ -218,7 +261,7 @@ function ProductModal({
                   value={
                     product.nilai_konversi
                       ? new Intl.NumberFormat("id-ID").format(
-                          product.nilai_konversi
+                          product.nilai_konversi,
                         )
                       : ""
                   }
@@ -266,7 +309,7 @@ function ProductModal({
                   value={
                     product.harga_beli
                       ? new Intl.NumberFormat("id-ID").format(
-                          product.harga_beli
+                          product.harga_beli,
                         )
                       : ""
                   }
@@ -288,7 +331,7 @@ function ProductModal({
                   value={
                     product.harga_jual
                       ? new Intl.NumberFormat("id-ID").format(
-                          product.harga_jual
+                          product.harga_jual,
                         )
                       : ""
                   }

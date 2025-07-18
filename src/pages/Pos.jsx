@@ -800,7 +800,7 @@ function Pos() {
               <button
                 onClick={() => handleQuickFilterClick("SAPPORO")}
                 className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
-                  activeQuickFilter === "SAPPORO"
+                  activeQuickFilter === "Sapporo"
                     ? "bg-blue-600 text-white shadow-md"
                     : "bg-white text-slate-700 hover:bg-blue-600 hover:text-white"
                 }`}

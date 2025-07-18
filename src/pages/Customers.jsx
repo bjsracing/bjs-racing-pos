@@ -8,10 +8,12 @@ import {
   FiFilter,
   FiAward,
   FiSearch,
+  FiTag, // <-- 1. TAMBAHKAN IKON BARU
 } from "react-icons/fi";
 import CustomerModal from "../components/CustomerModal.jsx";
 import DebtPaymentModal from "../components/DebtPaymentModal.jsx";
 import CustomerFilterModal from "../components/CustomerFilterModal.jsx";
+import SpecialPriceModal from "../components/SpecialPriceModal.jsx"; // <-- 2. IMPOR KOMPONEN MODAL BARU
 
 const tierColors = {
   Umum: "bg-slate-100 text-slate-800",
@@ -29,13 +31,16 @@ function Customers() {
   const [customerToEdit, setCustomerToEdit] = useState(null);
   const [debtModalCustomer, setDebtModalCustomer] = useState(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  // --- PERBAIKAN BUG DI SINI: State filter diinisialisasi dengan lengkap ---
   const [activeFilters, setActiveFilters] = useState({
     status: "semua",
     piutang: "semua",
     tingkatan: "semua",
   });
   const [searchTerm, setSearchTerm] = useState("");
+
+  // <-- 3. TAMBAHKAN STATE UNTUK MODAL HARGA SPESIAL
+  const [isSpecialPriceModalOpen, setIsSpecialPriceModalOpen] = useState(false);
+  const [customerForSpecialPrice, setCustomerForSpecialPrice] = useState(null);
 
   async function getCustomersData() {
     setLoading(true);
@@ -89,39 +94,39 @@ function Customers() {
   const handleOpenDebtModal = (customer) => {
     setDebtModalCustomer(customer);
   };
-  // INI BLOK KODE BARU SEBAGAI PENGGANTI
+
+  // <-- 4. TAMBAHKAN FUNGSI HANDLER UNTUK MODAL BARU
+  const handleOpenSpecialPriceModal = (customer) => {
+    setCustomerForSpecialPrice(customer);
+    setIsSpecialPriceModalOpen(true);
+  };
+
   const handleSaveCustomer = async (customerData) => {
     if (customerData.id) {
-      // --- PERBAIKAN DI SINI ---
-      // Kita 'bersihkan' data sebelum dikirim untuk di-update
-      // dengan membuang data kalkulasi dari VIEW.
       const {
         total_transaksi,
         total_piutang,
         total_laba_dihasilkan,
         tingkatan,
-        ...updateData // sisanya adalah data asli dari tabel 'customers'
+        ...updateData
       } = customerData;
-
       const { error } = await supabase
         .from("customers")
-        .update(updateData) // Kirim data yang sudah bersih
+        .update(updateData)
         .eq("id", customerData.id);
-
       if (error) {
         alert("Error mengupdate pelanggan: " + error.message);
       } else {
         alert("Pelanggan diperbarui!");
       }
     } else {
-      // Bagian Tambah Pelanggan Baru (tidak ada perubahan)
       delete customerData.id;
       const { error } = await supabase.from("customers").insert([customerData]);
       if (error) alert("Error: " + error.message);
       else alert("Pelanggan ditambahkan!");
     }
     setIsModalOpen(false);
-    getCustomersData(); // Muat ulang data setelah simpan
+    getCustomersData();
   };
   const handleDeleteCustomer = async (customerId, customerName) => {
     if (window.confirm(`Yakin ingin menghapus pelanggan "${customerName}"?`)) {
@@ -133,7 +138,6 @@ function Customers() {
 
   if (loading) return <p>Memuat data...</p>;
 
-  // GANTI SELURUH BLOK 'return' ANDA DENGAN INI:
   return (
     <div>
       <CustomerModal
@@ -155,6 +159,13 @@ function Customers() {
         onClose={() => setIsFilterModalOpen(false)}
         onApplyFilter={setActiveFilters}
         currentFilters={activeFilters}
+      />
+
+      {/* <-- 5. RENDER KOMPONEN MODAL BARU --> */}
+      <SpecialPriceModal
+        isOpen={isSpecialPriceModalOpen}
+        onClose={() => setIsSpecialPriceModalOpen(false)}
+        customer={customerForSpecialPrice}
       />
 
       <div className="flex justify-between items-center mb-6">
@@ -203,7 +214,10 @@ function Customers() {
           <thead>
             <tr className="bg-slate-200">
               <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                Nama Pelanggan
+                Nama Pelanggan / Toko
+              </th>
+              <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                Tipe
               </th>
               <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Tingkatan
@@ -224,8 +238,21 @@ function Customers() {
               filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-slate-50">
                   <td className="px-5 py-4 border-b border-slate-200 text-sm">
-                    <p className="font-semibold">{customer.nama_pelanggan}</p>
-                    <p className="text-xs text-slate-500">{customer.telepon}</p>
+                    <p className="font-semibold text-slate-900">
+                      {customer.nama_pelanggan}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {customer.nama_pemilik
+                        ? `(Pemilik: ${customer.nama_pemilik})`
+                        : customer.telepon}
+                    </p>
+                  </td>
+                  <td className="px-5 py-4 border-b border-slate-200 text-sm">
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${customer.tipe_pelanggan === "Grosir" ? "bg-yellow-300 text-slate-1000" : "bg-blue-500 text-white"}`}
+                    >
+                      {customer.tipe_pelanggan}
+                    </span>
                   </td>
                   <td className="px-5 py-4 border-b border-slate-200 text-sm">
                     <span
@@ -248,6 +275,15 @@ function Customers() {
                     </span>
                   </td>
                   <td className="px-5 py-4 border-b border-slate-200 text-sm text-center whitespace-nowrap">
+                    {/* <-- 6. TAMBAHKAN TOMBOL AKSI BARU UNTUK HARGA SPESIAL (DESKTOP) --> */}
+                    <button
+                      onClick={() => handleOpenSpecialPriceModal(customer)}
+                      title="Atur Harga Spesial"
+                      className="text-indigo-500 hover:text-indigo-700 mr-3 disabled:text-slate-300"
+                      disabled={customer.tipe_pelanggan !== "Grosir"}
+                    >
+                      <FiTag size={18} />
+                    </button>
                     <button
                       onClick={() => handleOpenDebtModal(customer)}
                       title="Kelola Piutang"
@@ -291,14 +327,14 @@ function Customers() {
             <div key={customer.id} className="bg-white p-4 rounded-lg shadow">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-bold text-lg">{customer.nama_pelanggan}</p>
-                  <p className="text-sm text-slate-500">{customer.telepon}</p>
-                  <span
-                    className={`mt-2 inline-block px-2 py-1 font-bold leading-tight rounded-full text-xs ${tierColors[customer.tingkatan] || "bg-slate-100"}`}
-                  >
-                    <FiAward className="inline mr-1 mb-0.5" />
-                    {customer.tingkatan}
-                  </span>
+                  <p className="font-bold text-lg text-slate-900">
+                    {customer.nama_pelanggan}
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    {customer.nama_pemilik
+                      ? `(Pemilik: ${customer.nama_pemilik})`
+                      : customer.telepon}
+                  </p>
                 </div>
                 <span
                   className={`px-2 py-1 text-xs font-semibold leading-tight rounded-full ${customer.status === "Aktif" ? "bg-green-100 text-green-900" : "bg-red-100 text-red-900"}`}
@@ -306,6 +342,21 @@ function Customers() {
                   {customer.status}
                 </span>
               </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <span
+                  className={`px-2 py-1 text-xs font-semibold rounded-full ${customer.tipe_pelanggan === "Grosir" ? "bg-yellow-300 text-slate-1000" : "bg-blue-500 text-white"}`}
+                >
+                  {customer.tipe_pelanggan}
+                </span>
+                <span
+                  className={`px-2 py-1 font-bold leading-tight rounded-full text-xs ${tierColors[customer.tingkatan] || "bg-slate-100"}`}
+                >
+                  <FiAward className="inline mr-1 mb-0.5" />
+                  {customer.tingkatan}
+                </span>
+              </div>
+
               <div className="mt-4 border-t pt-2">
                 <div className="text-sm flex justify-between">
                   <span className="text-slate-500">Total Piutang:</span>
@@ -317,6 +368,15 @@ function Customers() {
                 </div>
               </div>
               <div className="mt-4 flex justify-end gap-2">
+                {/* <-- 7. TAMBAHKAN TOMBOL AKSI BARU UNTUK HARGA SPESIAL (MOBILE) --> */}
+                <button
+                  onClick={() => handleOpenSpecialPriceModal(customer)}
+                  title="Atur Harga Spesial"
+                  className="text-indigo-500 hover:text-indigo-700 p-2 disabled:text-slate-300"
+                  disabled={customer.tipe_pelanggan !== "Grosir"}
+                >
+                  <FiTag size={20} />
+                </button>
                 <button
                   onClick={() => handleOpenDebtModal(customer)}
                   title="Kelola Piutang"

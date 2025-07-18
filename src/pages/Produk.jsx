@@ -295,6 +295,9 @@ function Produk() {
                 Nama Produk
               </th>
               <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                Ukuran
+              </th>
+              <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Merek
               </th>
               <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
@@ -305,6 +308,9 @@ function Produk() {
               </th>
               <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Harga Beli
+              </th>
+              <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                Harga Grosir
               </th>
               <th className="px-5 py-3 border-b-2 border-slate-300 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Harga Jual
@@ -342,6 +348,9 @@ function Produk() {
                       {product.nama}
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
+                      {product.ukuran || "-"}
+                    </td>
+                    <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
                       {product.merek}
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
@@ -354,6 +363,12 @@ function Produk() {
                       Rp{" "}
                       {new Intl.NumberFormat("id-ID").format(
                         product.harga_beli,
+                      )}
+                    </td>
+                    <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
+                      Rp{" "}
+                      {new Intl.NumberFormat("id-ID").format(
+                        product.harga_grosir || 0,
                       )}
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm whitespace-nowrap">
@@ -430,6 +445,7 @@ function Produk() {
           </tbody>
         </table>
       </div>
+      {/* Tampilan Mobile */}
       <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
         {products.length > 0 ? (
           products.map((product) => {
@@ -443,6 +459,7 @@ function Produk() {
                     : "border-l-4 border-transparent"
                 }`}
               >
+                {/* Info Nama & Status */}
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="text-lg font-bold text-slate-800 pr-2">
                     {product.nama}
@@ -457,8 +474,13 @@ function Produk() {
                     {product.status}
                   </span>
                 </div>
+
+                {/* Info Detail Produk */}
                 <div className="text-sm space-y-1">
                   <p className="text-slate-400">Kode: {product.kode || "-"}</p>
+                  <p className="text-slate-600">
+                    Ukuran: {product.ukuran || "-"}
+                  </p>
                   <p className="text-slate-600">
                     {product.merek || "Tanpa Merek"}
                   </p>
@@ -466,65 +488,62 @@ function Produk() {
                     {product.kategori}
                   </p>
                 </div>
-                <div>
-                  <div className="my-3 border-t border-slate-200"></div>
-                  <div className="flex justify-between items-end">
-                    <div className="text-sm">
-                      <p className="text-slate-500">Stok</p>
-                      <p
-                        className={`font-semibold ${
-                          isLowStock ? "text-red-600" : "text-slate-700"
-                        }`}
-                      >
-                        {product.stok}{" "}
-                        <span className="text-xs font-normal text-slate-400">
-                          (Min: {product.stok_min})
-                        </span>
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-slate-500 text-sm">Harga Jual</p>
-                      <p className="text-lg font-bold text-orange-500">
+
+                <div className="my-3 border-t border-slate-200"></div>
+
+                {/* Info Stok & Harga */}
+                <div className="flex justify-between items-end">
+                  {/* Kiri: Info Stok */}
+                  <div className="text-sm">
+                    <p className="text-slate-500">Stok</p>
+                    <p
+                      className={`font-semibold ${
+                        isLowStock ? "text-red-600" : "text-slate-700"
+                      }`}
+                    >
+                      {product.stok}{" "}
+                      <span className="text-xs font-normal text-slate-400">
+                        (Min: {product.stok_min})
+                      </span>
+                    </p>
+                  </div>
+
+                  {/* Kanan: Info Harga (Beli, Grosir, Jual) */}
+                  <div className="text-right">
+                    <p className="text-base text-slate-500 mt-2">
+                      Beli:{" "}
+                      <span className="text-base font-semibold text-slate-700">
+                        Rp{" "}
+                        {new Intl.NumberFormat("id-ID").format(
+                          product.harga_beli,
+                        )}
+                      </span>
+                    </p>
+                    <p className="text-base text-slate-500 mt-1">
+                      Grosir:{" "}
+                      <span className="text-base font-semibold text-blue-600">
+                        Rp{" "}
+                        {new Intl.NumberFormat("id-ID").format(
+                          product.harga_grosir,
+                        )}
+                      </span>
+                    </p>
+                    <p className="text-base text-slate-500 mt-1">
+                      Jual:{" "}
+                      <span className="text-lg font-bold text-orange-500">
                         Rp{" "}
                         {new Intl.NumberFormat("id-ID").format(
                           product.harga_jual,
                         )}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end items-center mt-2 -mr-2">
-                    <button
-                      onClick={() => handleOpenEditModal(product)}
-                      className="text-blue-500 hover:text-blue-700 p-2"
-                      title="Edit Produk"
-                    >
-                      <FiEdit size={20} />
-                    </button>
-                    <Link
-                      to={`/produk/riwayat/${product.id}`}
-                      className="text-gray-500 hover:text-gray-700 p-2"
-                      title="Lihat Riwayat"
-                    >
-                      <FiClock size={20} />
-                    </Link>
-                    <button
-                      onClick={() =>
-                        handleDeleteProduct(product.id, product.nama)
-                      }
-                      className="text-red-500 hover:text-red-700 p-2"
-                      title="Arsipkan Produk"
-                    >
-                      <FiTrash2 size={20} />
-                    </button>
+                      </span>
+                    </p>
                   </div>
                 </div>
               </div>
             );
           })
         ) : (
-          <div className="text-center py-10 text-slate-500 col-span-full">
-            Tidak ada data produk yang cocok.
-          </div>
+          <p className="text-slate-500 sm:col-span-2">Tidak ada produk.</p>
         )}
       </div>
     </div>

@@ -10,6 +10,7 @@ import {
   FiUsers,
   FiShoppingCart,
   FiStar,
+  FiBriefcase,
 } from "react-icons/fi"; // <-- IMPORT IKON BARU
 import { supabase } from "../supabaseClient.js";
 
@@ -18,6 +19,11 @@ function Navbar({ isOpen, onLinkClick }) {
   const navLinks = [
     { name: "Dashboard", path: "/", icon: <RxDashboard /> },
     { name: "POS", path: "/pos", icon: <RxArrowRight /> },
+    {
+      name: "Penjualan Grosir",
+      path: "/penjualan-grosir",
+      icon: <FiBriefcase />,
+    }, // <-- TAMBAHKAN INI
     { name: "Manajemen Produk", path: "/produk", icon: <RxCube /> },
     { name: "Manajemen Supplier", path: "/suppliers", icon: <FiTruck /> },
     {
