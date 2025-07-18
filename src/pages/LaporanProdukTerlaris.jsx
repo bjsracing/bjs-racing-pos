@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+// src/pages/LaporanProdukTerlaris.jsx
+
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import { format, differenceInDays } from "date-fns";
@@ -12,83 +14,30 @@ function LaporanProdukTerlaris() {
   const [loading, setLoading] = useState(true);
 
   const fetchReportData = useCallback(async (startDate, endDate) => {
-    if (!startDate || !endDate) {
-      setLoading(false);
-      return;
-    }
+    if (!startDate || !endDate) return setLoading(false);
     setLoading(true);
     try {
-      // 1. Ambil transaksi pada rentang tanggal
-      const { data: transactions, error: trxError } = await supabase
-        .from("transactions")
-        .select("items")
-        .gte("created_at", new Date(startDate).toISOString())
-        .lte("created_at", new Date(endDate).toISOString());
-      if (trxError) throw trxError;
-
-      // 2. Agregasi data penjualan dari JSON
-      const salesMap = new Map();
-      transactions.forEach((trx) => {
-        if (Array.isArray(trx.items)) {
-          trx.items.forEach((item) => {
-            if (!salesMap.has(item.id)) {
-              salesMap.set(item.id, { ...item, total_terjual: 0 });
-            }
-            salesMap.get(item.id).total_terjual += item.quantity;
-          });
-        }
+      const { data, error } = await supabase.rpc("get_best_selling_products", {
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
       });
+      if (error) throw error;
 
-      const productIds = Array.from(salesMap.keys());
-      if (productIds.length === 0) {
-        setReportData([]);
-        setLoading(false);
-        return;
-      }
-
-      // 3. Ambil data produk dan supplier terkait
-      const { data: productsData, error: prdError } = await supabase
-        .from("products")
-        .select("id, stok, stok_min, supplier_id, suppliers(nama_supplier)")
-        .in("id", productIds);
-      if (prdError) throw prdError;
-
-      const productsInfo = new Map(productsData.map((p) => [p.id, p]));
-
-      // 4. Gabungkan data & hitung estimasi
-      const combinedData = Array.from(salesMap.values()).map((item) => {
-        const productInfo = productsInfo.get(item.id);
-        const stok_saat_ini = productInfo?.stok ?? 0;
-        const stok_minimal = productInfo?.stok_min ?? 0;
-
+      const enrichedData = data.map((item) => {
         let saran_pembelian = 0;
-        if (stok_saat_ini <= stok_minimal) {
+        if (item.stok_saat_ini <= item.stok_minimal) {
           const daysInFilter =
             differenceInDays(new Date(endDate), new Date(startDate)) + 1;
           const avgDailySales =
             item.total_terjual / (daysInFilter > 0 ? daysInFilter : 1);
           const monthlyNeed = Math.ceil(avgDailySales * 30);
-          const suggestion = monthlyNeed - stok_saat_ini;
+          const suggestion = monthlyNeed - item.stok_saat_ini;
           saran_pembelian = suggestion > 0 ? suggestion : 0;
         }
-
-        return {
-          id: item.id,
-          kode: item.kode,
-          nama: item.nama,
-          merek: item.merek || "-",
-          kategori: item.kategori || "-",
-          nama_supplier: productInfo?.suppliers?.nama_supplier || "-",
-          total_terjual: item.total_terjual,
-          stok_saat_ini,
-          stok_minimal,
-          saran_pembelian,
-        };
+        return { ...item, saran_pembelian };
       });
 
-      // 5. Urutkan berdasarkan total terjual
-      combinedData.sort((a, b) => b.total_terjual - a.total_terjual);
-      setReportData(combinedData);
+      setReportData(enrichedData);
     } catch (error) {
       console.error("Gagal memuat laporan:", error.message);
     } finally {
@@ -121,7 +70,6 @@ function LaporanProdukTerlaris() {
             <p className="text-sm text-slate-500">{formattedDateRange}</p>
           </div>
         </div>
-
         {loading ? (
           <p>Memuat data laporan...</p>
         ) : (

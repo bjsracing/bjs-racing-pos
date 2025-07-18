@@ -203,9 +203,7 @@ function Dashboard() {
         transactionsCount,
       });
 
-      // 4. Proses Data untuk Grafik & Aktivitas
-      const productSales = {};
-      const pilokSales = {};
+      // 4. Proses Data untuk Grafik Penjualan Harian & Kategori (dari transaksi)
       const categorySales = {};
       const dailySales = {};
       const dateLabels = eachDayOfInterval({ start: startDate, end: endDate });
@@ -221,24 +219,35 @@ function Dashboard() {
 
         if (Array.isArray(trx.items)) {
           trx.items.forEach((item) => {
-            const itemTotal = item.harga_jual * item.quantity;
             if (item.kategori) {
+              const itemTotal =
+                (item.harga_jual || item.harga_grosir_deal) *
+                (item.quantity || item.kuantitas);
               categorySales[item.kategori] =
                 (categorySales[item.kategori] || 0) + itemTotal;
-            }
-            productSales[item.nama] =
-              (productSales[item.nama] || 0) + item.quantity;
-            if (item.kategori === "Pilok") {
-              const pilokIdentifier =
-                `${item.nama} (${item.kode}) ${item.merek || ""}`.trim();
-              pilokSales[pilokIdentifier] =
-                (pilokSales[pilokIdentifier] || 0) + item.quantity;
             }
           });
         }
       });
 
-      // 5. Siapkan Data Grafik Penjualan Harian
+      // 5. Ambil data Top Produk & Top Pilok dari FUNGSI RPC BARU
+      const { data: topProductsData } = await supabase.rpc(
+        "get_best_selling_products",
+        {
+          start_date: startTime,
+          end_date: endTime,
+        },
+      );
+      const { data: topPilokData } = await supabase.rpc(
+        "get_best_selling_products",
+        {
+          start_date: startTime,
+          end_date: endTime,
+          category_filter: "Pilok",
+        },
+      );
+
+      // 6. Siapkan Data Grafik Penjualan Harian
       setDailySalesChartData({
         labels: Object.keys(dailySales).map((date) =>
           format(new Date(date), "d MMM", { locale: id }),
@@ -254,16 +263,13 @@ function Dashboard() {
         ],
       });
 
-      // 6. Siapkan Data Grafik Top 20 Produk Terlaris
-      const sortedProducts = Object.entries(productSales)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 20);
+      // 7. Siapkan Data Grafik Top 20 Produk Terlaris (dari RPC)
       setTopProductsChartData({
-        labels: sortedProducts.map(([name]) => name),
+        labels: topProductsData.slice(0, 20).map((p) => p.nama),
         datasets: [
           {
             label: "Jumlah Terjual",
-            data: sortedProducts.map(([, qty]) => qty),
+            data: topProductsData.slice(0, 20).map((p) => p.total_terjual),
             backgroundColor: "rgba(59, 130, 246, 0.6)",
             borderColor: "rgba(59, 130, 246, 1)",
             borderWidth: 1,
@@ -271,16 +277,15 @@ function Dashboard() {
         ],
       });
 
-      // 7. Siapkan Data Grafik Top 20 Pilok Terlaris (dengan perbaikan)
-      const sortedPilok = Object.entries(pilokSales)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 20);
+      // 8. Siapkan Data Grafik Top 20 Pilok Terlaris (dari RPC)
       setTopPilokChartData({
-        labels: sortedPilok.map(([name]) => name),
+        labels: topPilokData
+          .slice(0, 20)
+          .map((p) => `${p.nama} (${p.kode}) ${p.merek || ""}`.trim()),
         datasets: [
           {
             label: "Jumlah Terjual",
-            data: sortedPilok.map(([, qty]) => qty),
+            data: topPilokData.slice(0, 20).map((p) => p.total_terjual),
             backgroundColor: "rgba(251, 146, 60, 0.8)",
             borderColor: "rgba(251, 146, 60, 1)",
             borderWidth: 1,
@@ -288,7 +293,7 @@ function Dashboard() {
         ],
       });
 
-      // 8. Siapkan Data Grafik Penjualan per Kategori
+      // 9. Siapkan Data Grafik Penjualan per Kategori
       const sortedCategories = Object.entries(categorySales).sort(
         ([, a], [, b]) => b - a,
       );
@@ -313,7 +318,7 @@ function Dashboard() {
         ],
       });
 
-      // 9. Siapkan Data Aktivitas Terkini
+      // 10. Siapkan Data Aktivitas Terkini
       setRecentActivities(transactions.slice(0, 5));
     } catch (error) {
       console.error("Gagal memuat data dashboard:", error.message);
@@ -511,50 +516,76 @@ function Dashboard() {
               />
             </div>
           </div>
-
           {/* --- Aktivitas Terkini (dengan perbaikan) --- */}
+          {/* --- GANTI SELURUH BLOK "Aktivitas Terkini" DENGAN INI --- */}
           <div className="bg-white p-4 md:p-6 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4">Aktivitas Terkini</h2>
             <ul className="space-y-4">
-              {recentActivities.length > 0 ? (
-                recentActivities.map((act) => (
-                  <li
-                    key={act.id}
-                    className="text-sm border-b pb-3 last:border-b-0"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-semibold">
-                        {act.customers?.nama_pelanggan || "Pelanggan"}
+              {recentActivities && recentActivities.length > 0 ? (
+                recentActivities.map((activity) => {
+                  // Pengecekan keamanan: Lewati jika aktivitas/ID tidak valid
+                  if (!activity || !activity.id) {
+                    return null;
+                  }
+                  return (
+                    <li
+                      key={activity.id}
+                      className="text-sm border-b pb-3 last:border-b-0"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-semibold">
+                          {activity.customers?.nama_pelanggan ||
+                            "Pelanggan Umum"}
+                        </p>
+                        <p className="text-slate-400 text-xs">
+                          {new Date(activity.created_at).toLocaleTimeString(
+                            "id-ID",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </p>
+                      </div>
+                      <ul className="pl-2 space-y-1">
+                        {/* Pastikan activity.items adalah array sebelum diproses */}
+                        {Array.isArray(activity.items) &&
+                          activity.items.slice(0, 2).map((item, index) => {
+                            // Logika untuk menangani dua jenis struktur item
+                            const key =
+                              item.id || item.product_id || `item-${index}`;
+                            const quantity = item.kuantitas || item.quantity;
+                            // Jika item.nama tidak ada (kasus grosir), tampilkan fallback
+                            const name =
+                              item.nama ||
+                              `Item (ID: ${item.product_id.substring(0, 5)}...)`;
+                            const brand = item.merek || "-";
+
+                            return (
+                              <li key={key} className="text-xs text-slate-600">
+                                {quantity}x {name} ({brand})
+                              </li>
+                            );
+                          })}
+                        {Array.isArray(activity.items) &&
+                          activity.items.length > 2 && (
+                            <li
+                              key={`more-${activity.id}`}
+                              className="text-xs text-slate-400 italic"
+                            >
+                              ...dan {activity.items.length - 2} item lainnya
+                            </li>
+                          )}
+                      </ul>
+                      <p className="text-right font-semibold mt-1">
+                        Rp{" "}
+                        {new Intl.NumberFormat("id-ID").format(
+                          activity.total_akhir,
+                        )}
                       </p>
-                      <p className="text-slate-400 text-xs">
-                        {new Date(act.created_at).toLocaleTimeString("id-ID", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                    <ul className="pl-2 space-y-1">
-                      {act.items.slice(0, 2).map(
-                        (
-                          item, // Tampilkan maks 2 item
-                        ) => (
-                          <li key={item.id} className="text-xs text-slate-600">
-                            {item.quantity}x {item.nama} ({item.merek || "-"})
-                          </li>
-                        ),
-                      )}
-                      {act.items.length > 2 && (
-                        <li className="text-xs text-slate-400 italic">
-                          ...dan {act.items.length - 2} item lainnya
-                        </li>
-                      )}
-                    </ul>
-                    <p className="text-right font-semibold mt-1">
-                      Rp{" "}
-                      {new Intl.NumberFormat("id-ID").format(act.total_akhir)}
-                    </p>
-                  </li>
-                ))
+                    </li>
+                  );
+                })
               ) : (
                 <p className="text-sm text-slate-400">
                   Tidak ada transaksi pada rentang ini.

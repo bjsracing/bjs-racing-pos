@@ -1,7 +1,63 @@
-// Baris 'import IntlNumberFormat...' yang error sudah dihapus
+// src/components/TransactionDetailModal.jsx
+
+import React, { useState, useEffect } from "react";
+import { supabase } from "../supabaseClient";
 
 function TransactionDetailModal({ isOpen, onClose, transaction }) {
+  const [displayItems, setDisplayItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(true);
+
+  useEffect(() => {
+    if (!transaction?.items) return;
+
+    const hydrateItems = async () => {
+      setLoadingItems(true);
+      const firstItem = transaction.items[0];
+
+      // Cek apakah ini transaksi grosir (berdasarkan key 'harga_grosir_deal')
+      if (firstItem && "harga_grosir_deal" in firstItem) {
+        try {
+          const productIds = transaction.items.map((item) => item.product_id);
+          const { data: productsData, error } = await supabase
+            .from("products")
+            .select("id, nama, kode")
+            .in("id", productIds);
+
+          if (error) throw error;
+
+          // Buat "kamus" produk untuk pencarian cepat
+          const productsMap = new Map(productsData.map((p) => [p.id, p]));
+
+          // Gabungkan data transaksi dengan detail produk
+          const hydrated = transaction.items.map((item) => ({
+            ...item, // kuantitas, harga_grosir_deal, dll.
+            nama:
+              productsMap.get(item.product_id)?.nama ||
+              "Produk tidak ditemukan",
+            kode: productsMap.get(item.product_id)?.kode || "-",
+          }));
+          setDisplayItems(hydrated);
+        } catch (err) {
+          console.error(
+            "Gagal mengambil detail produk untuk transaksi grosir:",
+            err,
+          );
+          setDisplayItems([]); // Tampilkan kosong jika error
+        }
+      } else {
+        // Jika ini transaksi POS biasa, langsung gunakan datanya
+        setDisplayItems(transaction.items);
+      }
+      setLoadingItems(false);
+    };
+
+    hydrateItems();
+  }, [transaction]);
+
   if (!isOpen || !transaction) return null;
+
+  const isGrosir =
+    transaction.items?.[0] && "harga_grosir_deal" in transaction.items[0];
 
   return (
     <div
@@ -23,27 +79,36 @@ function TransactionDetailModal({ isOpen, onClose, transaction }) {
 
         <div className="max-h-60 overflow-y-auto border-t border-b py-2">
           <h3 className="font-semibold mb-2">Item yang Terjual:</h3>
-          {transaction.items &&
-            transaction.items.map((item, index) => (
+          {loadingItems ? (
+            <p>Memuat item...</p>
+          ) : (
+            displayItems.map((item, index) => (
               <div
-                key={index}
+                key={item.id || index}
                 className="flex justify-between items-center mb-1 text-sm"
               >
                 <span>
                   {item.nama}{" "}
-                  <span className="text-slate-500">x{item.quantity}</span>
+                  <span className="text-slate-500">
+                    x{item.kuantitas || item.quantity}
+                  </span>
                 </span>
-                {/* Penggunaan new Intl.NumberFormat yang benar */}
                 <span>
                   Rp{" "}
-                  {new Intl.NumberFormat("id-ID").format(
-                    item.harga_jual * item.quantity,
-                  )}
+                  {isGrosir
+                    ? new Intl.NumberFormat("id-ID").format(
+                        item.harga_grosir_deal * item.kuantitas,
+                      )
+                    : new Intl.NumberFormat("id-ID").format(
+                        item.harga_jual * item.quantity,
+                      )}
                 </span>
               </div>
-            ))}
+            ))
+          )}
         </div>
 
+        {/* Bagian total tidak berubah */}
         <div className="mt-4 space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-slate-500">Subtotal</span>
