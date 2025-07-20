@@ -1,4 +1,7 @@
-import { Link, useNavigate } from "react-router-dom";
+// src/components/Navbar.jsx (Versi Final)
+
+import React, { useState, useEffect } from "react";
+import { NavLink, useNavigate } from "react-router-dom"; // Ganti Link dengan NavLink
 import { RxDashboard, RxCube, RxArrowRight } from "react-icons/rx";
 import {
   FiTruck,
@@ -11,11 +14,23 @@ import {
   FiShoppingCart,
   FiStar,
   FiBriefcase,
-} from "react-icons/fi"; // <-- IMPORT IKON BARU
+} from "react-icons/fi";
 import { supabase } from "../supabaseClient.js";
 
 function Navbar({ isOpen, onLinkClick }) {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    fetchUser();
+  }, []);
+
   const navLinks = [
     { name: "Dashboard", path: "/", icon: <RxDashboard /> },
     { name: "POS", path: "/pos", icon: <RxArrowRight /> },
@@ -23,7 +38,7 @@ function Navbar({ isOpen, onLinkClick }) {
       name: "Penjualan Grosir",
       path: "/penjualan-grosir",
       icon: <FiBriefcase />,
-    }, // <-- TAMBAHKAN INI
+    },
     { name: "Manajemen Produk", path: "/produk", icon: <RxCube /> },
     { name: "Manajemen Supplier", path: "/suppliers", icon: <FiTruck /> },
     {
@@ -31,7 +46,7 @@ function Navbar({ isOpen, onLinkClick }) {
       path: "/pembelian",
       icon: <FiShoppingCart />,
     },
-    { name: "Manajemen Pelanggan", path: "/pelanggan", icon: <FiUsers /> }, // <-- LINK MENU BARU
+    { name: "Manajemen Pelanggan", path: "/pelanggan", icon: <FiUsers /> },
     {
       name: "Permintaan Pelanggan",
       path: "/permintaan-pelanggan",
@@ -42,7 +57,11 @@ function Navbar({ isOpen, onLinkClick }) {
       path: "/pengeluaran",
       icon: <FiTrendingDown />,
     },
-    { name: "Laporan Keuangan", path: "/laporan", icon: <FiFileText /> },
+    {
+      name: "Laporan Laba/Rugi",
+      path: "/laporan/laba-rugi",
+      icon: <FiFileText />,
+    },
     {
       name: "Riwayat Transaksi",
       path: "/histori-transaksi",
@@ -57,34 +76,53 @@ function Navbar({ isOpen, onLinkClick }) {
   };
 
   return (
+    // Div utama dibuat fleksibel dan bisa disembunyikan
     <div
-      className={`fixed inset-y-0 left-0 transform ${isOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out w-64 h-full bg-slate-800 text-white p-4 flex flex-col justify-between z-30`}
+      className={`fixed inset-y-0 left-0 transform ${isOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out w-64 h-full bg-slate-800 text-white p-4 flex flex-col z-30`}
     >
-      <div>
-        <h1 className="text-2xl font-bold text-primary-500 mb-8">
+      {/* Bagian Atas (Judul) - Tidak bisa di-scroll */}
+      <div className="flex-shrink-0">
+        <h1 className="text-2xl font-bold text-orange-500 mb-8">
           BJS RACING POS
         </h1>
-        <nav>
-          <ul>
-            {navLinks.map((link) => (
-              <li key={link.name} className="mb-4">
-                <Link
-                  to={link.path}
-                  onClick={onLinkClick}
-                  className="flex items-center p-2 rounded-lg hover:bg-slate-700 transition-colors"
-                >
-                  <span className="mr-3 text-xl">{link.icon}</span>
-                  {link.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
       </div>
-      <div>
+
+      {/* Bagian Tengah (Menu) - BISA DI-SCROLL */}
+      <nav className="flex-grow overflow-y-auto pr-2">
+        <ul>
+          {navLinks.map((link) => (
+            <li key={link.name} className="mb-2">
+              {/* Menggunakan NavLink untuk styling link aktif */}
+              <NavLink
+                to={link.path}
+                onClick={onLinkClick}
+                className={({ isActive }) =>
+                  `flex items-center p-2 rounded-lg transition-colors ${
+                    isActive
+                      ? "bg-orange-500 text-white font-semibold"
+                      : "text-white hover:bg-slate-700 hover:text-white"
+                  }`
+                }
+              >
+                <span className="mr-3 text-xl">{link.icon}</span>
+                {link.name}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* Bagian Bawah (Profil & Logout) - Tidak bisa di-scroll */}
+      <div className="flex-shrink-0">
+        <div className="p-2 border-t border-slate-700">
+          <p className="text-xs text-slate-400">Anda login sebagai:</p>
+          <p className="font-semibold text-sm truncate">
+            {user ? user.email : "Memuat..."}
+          </p>
+        </div>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center p-2 rounded-lg hover:bg-red-500 transition-colors"
+          className="w-full flex items-center p-2 rounded-lg hover:bg-red-500 transition-colors mt-2"
         >
           <span className="mr-3 text-xl">
             <FiLogOut />
@@ -95,4 +133,5 @@ function Navbar({ isOpen, onLinkClick }) {
     </div>
   );
 }
+
 export default Navbar;

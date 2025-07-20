@@ -21,7 +21,7 @@ import Login from "./pages/Login.jsx";
 import TransactionHistory from "./pages/TransactionHistory.jsx";
 import StockHistory from "./pages/StockHistory.jsx";
 import Expenses from "./pages/Expenses.jsx";
-import Reports from "./pages/Reports.jsx";
+import LaporanLabaRugi from "./pages/LaporanLabaRugi.jsx";
 import PermintaanPelanggan from "./pages/PermintaanPelanggan.jsx";
 import LaporanProdukTerlaris from "./pages/LaporanProdukTerlaris";
 import LaporanProdukPilok from "./pages/LaporanProdukPilok";
@@ -30,21 +30,22 @@ import CetakDokumenPage from "./pages/CetakDokumenPage.jsx";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div className="flex h-screen bg-slate-100">
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        ></div>
-      )}
+    <div className="h-screen bg-orange-100 flex">
+      {/* Navbar sekarang menjadi komponen utama yang mengontrol dirinya sendiri */}
       <Navbar
         isOpen={isSidebarOpen}
         onLinkClick={() => setSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+
+      {/* Wrapper untuk konten utama */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header sekarang menjadi bagian dari konten */}
+        <Header onMenuClick={() => setSidebarOpen(!isSidebarOpen)} />
+
+        {/* Main content area sekarang bisa di-scroll secara independen */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <Outlet />
         </main>
       </div>
@@ -127,7 +128,7 @@ function App() {
         <Route path="pelanggan" element={<Customers />} />
         <Route path="permintaan-pelanggan" element={<PermintaanPelanggan />} />
         <Route path="pengeluaran" element={<Expenses />} />
-        <Route path="laporan" element={<Reports />} />
+        <Route path="/laporan/laba-rugi" element={<LaporanLabaRugi />} />
         <Route
           path="laporan-produk-terlaris"
           element={<LaporanProdukTerlaris />}

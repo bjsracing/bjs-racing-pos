@@ -1,3 +1,5 @@
+// src/pages/Dashboard.jsx (Versi Final dengan Backend-Driven Charts)
+
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
@@ -30,15 +32,11 @@ import {
   subDays,
   startOfMonth,
   endOfMonth,
-  eachDayOfInterval,
   format,
 } from "date-fns";
 import { id } from "date-fns/locale";
 
-// Registrasi locale Indonesia untuk DatePicker
 registerLocale("id", id);
-
-// Registrasi komponen ChartJS
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -51,7 +49,6 @@ ChartJS.register(
   ArcElement,
 );
 
-// --- Komponen Kartu Metrik (Layout Vertikal Baru) ---
 const MetricCard = ({
   icon,
   title,
@@ -70,7 +67,6 @@ const MetricCard = ({
       <p className="text-2xl font-bold">{value}</p>
     </div>
   );
-
   return isLink ? (
     <Link to={to} state={state}>
       {content}
@@ -80,7 +76,6 @@ const MetricCard = ({
   );
 };
 
-// --- Komponen Utama Dashboard ---
 function Dashboard() {
   // State untuk metrik
   const [metrics, setMetrics] = useState({
@@ -119,12 +114,11 @@ function Dashboard() {
     startOfDay(subDays(new Date(), 6)),
     endOfDay(new Date()),
   ]);
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // --- Fungsi-fungsi untuk filter tanggal ---
+  // Fungsi-fungsi dan sisa kode Anda dimulai dari sini...
+
   const handleDateFilterChange = (filter) => {
     setActiveFilter(filter);
-    setShowDatePicker(false);
     let start, end;
     const today = new Date();
     switch (filter) {
@@ -136,7 +130,6 @@ function Dashboard() {
         start = startOfDay(today);
         end = endOfDay(today);
         break;
-      case "7days":
       default:
         start = startOfDay(subDays(today, 6));
         end = endOfDay(today);
@@ -146,15 +139,18 @@ function Dashboard() {
   };
 
   const handleCustomDateChange = (dates) => {
+    // `dates` adalah sebuah array [startDate, endDate]
     const [start, end] = dates;
-    setDateRange([start, end]); // Update range saat memilih
+
+    // Langsung update state tanggal agar kalender responsif
+    setDateRange(dates);
+
+    // Ubah status filter menjadi 'custom' HANYA jika sudah lengkap
     if (start && end) {
       setActiveFilter("custom");
-      setShowDatePicker(false);
     }
   };
 
-  // --- Fungsi utama untuk mengambil semua data dashboard ---
   const fetchDashboardData = useCallback(async (startDate, endDate) => {
     if (!startDate || !endDate) return;
     setLoading(true);
@@ -162,29 +158,46 @@ function Dashboard() {
       const startTime = startOfDay(startDate).toISOString();
       const endTime = endOfDay(endDate).toISOString();
 
-      // 1. Ambil Data Transaksi
-      const { data: transactions, error: trxError } = await supabase
-        .from("transactions")
-        .select(
-          "total_akhir, total_laba, items, created_at, customers(nama_pelanggan)",
-        )
-        .gte("created_at", startTime)
-        .lte("created_at", endTime)
-        .order("created_at", { ascending: false });
-      if (trxError) throw trxError;
+      // Panggil semua data dari backend secara paralel
+      const [
+        metricsRes,
+        chartsRes,
+        topProductsRes,
+        topPilokRes,
+        recentActivitiesRes,
+      ] = await Promise.all([
+        supabase.rpc("get_dashboard_metrics", {
+          start_date: startTime,
+          end_date: endTime,
+        }),
+        supabase.rpc("get_dashboard_charts_data", {
+          start_date: startTime,
+          end_date: endTime,
+        }),
+        supabase.rpc("get_best_selling_products", {
+          start_date: startTime,
+          end_date: endTime,
+        }),
+        supabase.rpc("get_best_selling_products", {
+          start_date: startTime,
+          end_date: endTime,
+          category_filter: "Pilok",
+        }),
+        supabase
+          .from("transactions")
+          .select(
+            "id, total_akhir, items, created_at, customers(nama_pelanggan)",
+          )
+          .gte("created_at", startTime)
+          .lte("created_at", endTime)
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
 
-      // 2. Kalkulasi Metrik Dasar
-      const salesValue = transactions.reduce(
-        (sum, trx) => sum + trx.total_akhir,
-        0,
-      );
-      const profitValue = transactions.reduce(
-        (sum, trx) => sum + trx.total_laba,
-        0,
-      );
-      const transactionsCount = transactions.length;
-
-      // 3. Ambil Metrik Produk
+      // Proses Metrik
+      if (metricsRes.error) throw metricsRes.error;
+      const { sales_value, profit_value, transactions_count } =
+        metricsRes.data[0];
       const { count: totalProducts } = await supabase
         .from("products")
         .select("*", { count: "exact", head: true })
@@ -198,103 +211,29 @@ function Dashboard() {
       setMetrics({
         totalProducts,
         lowStockProducts,
-        salesValue,
-        profitValue,
-        transactionsCount,
+        salesValue: sales_value,
+        profitValue: profit_value,
+        transactionsCount: transactions_count,
       });
 
-      // 4. Proses Data untuk Grafik Penjualan Harian & Kategori (dari transaksi)
-      const categorySales = {};
-      const dailySales = {};
-      const dateLabels = eachDayOfInterval({ start: startDate, end: endDate });
-      dateLabels.forEach((day) => {
-        dailySales[format(day, "yyyy-MM-dd")] = 0;
-      });
-
-      transactions.forEach((trx) => {
-        const trxDate = format(new Date(trx.created_at), "yyyy-MM-dd");
-        if (dailySales.hasOwnProperty(trxDate)) {
-          dailySales[trxDate] += trx.total_akhir;
-        }
-
-        if (Array.isArray(trx.items)) {
-          trx.items.forEach((item) => {
-            if (item.kategori) {
-              const itemTotal =
-                (item.harga_jual || item.harga_grosir_deal) *
-                (item.quantity || item.kuantitas);
-              categorySales[item.kategori] =
-                (categorySales[item.kategori] || 0) + itemTotal;
-            }
-          });
-        }
-      });
-
-      // 5. Ambil data Top Produk & Top Pilok dari FUNGSI RPC BARU
-      const { data: topProductsData } = await supabase.rpc(
-        "get_best_selling_products",
-        {
-          start_date: startTime,
-          end_date: endTime,
-        },
-      );
-      const { data: topPilokData } = await supabase.rpc(
-        "get_best_selling_products",
-        {
-          start_date: startTime,
-          end_date: endTime,
-          category_filter: "Pilok",
-        },
-      );
-
-      // 6. Siapkan Data Grafik Penjualan Harian
+      // Proses Data Grafik dari RPC
+      if (chartsRes.error) throw chartsRes.error;
+      const { daily_sales, category_sales } = chartsRes.data[0];
       setDailySalesChartData({
-        labels: Object.keys(dailySales).map((date) =>
+        labels: Object.keys(daily_sales || {}).map((date) =>
           format(new Date(date), "d MMM", { locale: id }),
         ),
         datasets: [
           {
             label: "Penjualan (Rp)",
-            data: Object.values(dailySales),
+            data: Object.values(daily_sales || {}),
             borderColor: "rgb(251, 146, 60)",
             backgroundColor: "rgba(251, 146, 60, 0.5)",
             tension: 0.1,
           },
         ],
       });
-
-      // 7. Siapkan Data Grafik Top 20 Produk Terlaris (dari RPC)
-      setTopProductsChartData({
-        labels: topProductsData.slice(0, 20).map((p) => p.nama),
-        datasets: [
-          {
-            label: "Jumlah Terjual",
-            data: topProductsData.slice(0, 20).map((p) => p.total_terjual),
-            backgroundColor: "rgba(59, 130, 246, 0.6)",
-            borderColor: "rgba(59, 130, 246, 1)",
-            borderWidth: 1,
-          },
-        ],
-      });
-
-      // 8. Siapkan Data Grafik Top 20 Pilok Terlaris (dari RPC)
-      setTopPilokChartData({
-        labels: topPilokData
-          .slice(0, 20)
-          .map((p) => `${p.nama} (${p.kode}) ${p.merek || ""}`.trim()),
-        datasets: [
-          {
-            label: "Jumlah Terjual",
-            data: topPilokData.slice(0, 20).map((p) => p.total_terjual),
-            backgroundColor: "rgba(251, 146, 60, 0.8)",
-            borderColor: "rgba(251, 146, 60, 1)",
-            borderWidth: 1,
-          },
-        ],
-      });
-
-      // 9. Siapkan Data Grafik Penjualan per Kategori
-      const sortedCategories = Object.entries(categorySales).sort(
+      const sortedCategories = Object.entries(category_sales || {}).sort(
         ([, a], [, b]) => b - a,
       );
       setCategoryChartData({
@@ -308,20 +247,52 @@ function Dashboard() {
               "#F59E0B",
               "#EF4444",
               "#8B5CF6",
-              "#EC4899",
-              "#6B7280",
-              "#FBBF24",
-              "#D946EF",
-              "#22D3EE",
             ],
           },
         ],
       });
 
-      // 10. Siapkan Data Aktivitas Terkini
-      setRecentActivities(transactions.slice(0, 5));
+      // Proses Top Produk & Pilok dari RPC
+      if (topProductsRes.error) throw topProductsRes.error;
+      if (topPilokRes.error) throw topPilokRes.error;
+      setTopProductsChartData({
+        labels: (topProductsRes.data || []).slice(0, 20).map((p) => p.nama),
+        datasets: [
+          {
+            label: "Jumlah Terjual",
+            data: (topProductsRes.data || [])
+              .slice(0, 20)
+              .map((p) => p.total_terjual),
+            backgroundColor: "rgba(59, 130, 246, 0.6)",
+            borderColor: "rgba(59, 130, 246, 1)",
+            borderWidth: 1,
+          },
+        ],
+      });
+      setTopPilokChartData({
+        labels: (topPilokRes.data || [])
+          .slice(0, 20)
+          .map((p) => `${p.nama} (${p.kode}) ${p.merek || ""}`.trim()),
+        datasets: [
+          {
+            label: "Jumlah Terjual",
+            data: (topPilokRes.data || [])
+              .slice(0, 20)
+              .map((p) => p.total_terjual),
+            backgroundColor: "rgba(251, 146, 60, 0.8)",
+            borderColor: "rgba(251, 146, 60, 1)",
+            borderWidth: 1,
+          },
+        ],
+      });
+
+      // Proses Aktivitas Terkini
+      if (recentActivitiesRes.error) throw recentActivitiesRes.error;
+      setRecentActivities(recentActivitiesRes.data || []);
     } catch (error) {
       console.error("Gagal memuat data dashboard:", error.message);
+      // Tambahkan alert agar pengguna tahu jika ada masalah
+      alert("Gagal memuat data dashboard. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -331,18 +302,12 @@ function Dashboard() {
     fetchDashboardData(dateRange[0], dateRange[1]);
   }, [dateRange, fetchDashboardData]);
 
-  if (loading)
-    return (
-      <div className="p-6">
-        <p>Memuat data dashboard...</p>
-      </div>
-    );
-
+  // Kode JSX di bawah ini tidak berubah, hanya memanggil state yang sudah diisi.
   return (
-    <div className="p-4 sm:p-6 bg-slate-50 min-h-screen">
+    <div className="p-4 sm:p-6 bg-orange-200 min-h-screen rounded-xl">
       <h1 className="text-2xl sm:text-3xl font-bold mb-6">Dashboard</h1>
 
-      {/* --- Filter Tanggal (dengan perbaikan) --- */}
+      {/* --- FILTER TANGGAL DENGAN CLASSNAME DINAMIS --- */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -363,29 +328,26 @@ function Dashboard() {
           >
             Bulan Ini
           </button>
-          <div className="relative">
-            <DatePicker
-              selected={dateRange[0]}
-              onChange={handleCustomDateChange}
-              startDate={dateRange[0]}
-              endDate={dateRange[1]}
-              selectsRange
-              locale="id"
-              dateFormat="d MMM yyyy"
-              customInput={
-                <button
-                  className={`px-4 py-2 text-sm font-semibold rounded-md flex items-center gap-2 ${activeFilter === "custom" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"}`}
-                >
-                  <FaCalendarAlt />
-                  <span>{`${format(dateRange[0], "d MMM yy")} - ${format(dateRange[1], "d MMM yy")}`}</span>
-                </button>
-              }
-            />
-          </div>
+          <DatePicker
+            selected={dateRange[0]}
+            onChange={handleCustomDateChange}
+            startDate={dateRange[0]}
+            endDate={dateRange[1]}
+            selectsRange
+            locale="id"
+            dateFormat="d MMM yyyy"
+            customInput={
+              <button
+                className={`px-4 py-2 text-sm font-semibold rounded-md flex items-center gap-2 ${activeFilter === "custom" ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"}`}
+              >
+                <FaCalendarAlt />
+                <span>{`${format(dateRange[0], "d MMM yy")} - ${format(dateRange[1], "d MMM yy")}`}</span>
+              </button>
+            }
+          />
         </div>
       </div>
 
-      {/* --- Grid Kartu Metrik (dengan perbaikan) --- */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
         <MetricCard
           icon={<FaDollarSign size={24} />}
@@ -422,9 +384,7 @@ function Dashboard() {
         />
       </div>
 
-      {/* Grid Utama (2 kolom besar) */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Kolom Kiri (3/5) */}
         <div className="lg:col-span-3 flex flex-col gap-6">
           <div className="bg-white p-4 md:p-6 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4">Grafik Penjualan</h2>
@@ -453,7 +413,9 @@ function Dashboard() {
                     responsive: true,
                     maintainAspectRatio: false,
                     indexAxis: "y",
-                    scales: { y: { ticks: { font: { size: 10 } } } },
+                    scales: {
+                      y: { ticks: { font: { size: 10, weight: "bold" } } },
+                    },
                   }}
                   data={topProductsChartData}
                 />
@@ -494,7 +456,6 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Kolom Kanan (2/5) */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="bg-white p-4 md:p-6 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-2">
@@ -516,17 +477,13 @@ function Dashboard() {
               />
             </div>
           </div>
-          {/* --- Aktivitas Terkini (dengan perbaikan) --- */}
-          {/* --- GANTI SELURUH BLOK "Aktivitas Terkini" DENGAN INI --- */}
+
           <div className="bg-white p-4 md:p-6 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4">Aktivitas Terkini</h2>
             <ul className="space-y-4">
               {recentActivities && recentActivities.length > 0 ? (
                 recentActivities.map((activity) => {
-                  // Pengecekan keamanan: Lewati jika aktivitas/ID tidak valid
-                  if (!activity || !activity.id) {
-                    return null;
-                  }
+                  if (!activity || !activity.id) return null;
                   return (
                     <li
                       key={activity.id}
@@ -540,35 +497,27 @@ function Dashboard() {
                         <p className="text-slate-400 text-xs">
                           {new Date(activity.created_at).toLocaleTimeString(
                             "id-ID",
-                            {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
+                            { hour: "2-digit", minute: "2-digit" },
                           )}
                         </p>
                       </div>
-                      <ul className="pl-2 space-y-1">
-                        {/* Pastikan activity.items adalah array sebelum diproses */}
-                        {Array.isArray(activity.items) &&
-                          activity.items.slice(0, 2).map((item, index) => {
-                            // Logika untuk menangani dua jenis struktur item
+                      {Array.isArray(activity.items) && (
+                        <ul className="pl-2 space-y-1">
+                          {activity.items.slice(0, 2).map((item, index) => {
+                            if (!item) return null;
                             const key =
                               item.id || item.product_id || `item-${index}`;
-                            const quantity = item.kuantitas || item.quantity;
-                            // Jika item.nama tidak ada (kasus grosir), tampilkan fallback
-                            const name =
-                              item.nama ||
-                              `Item (ID: ${item.product_id.substring(0, 5)}...)`;
-                            const brand = item.merek || "-";
-
+                            const quantity =
+                              item.kuantitas || item.quantity || 0;
+                            const name = item.nama || `(Item Grosir)`;
+                            const brand = item.merek || "";
                             return (
                               <li key={key} className="text-xs text-slate-600">
-                                {quantity}x {name} ({brand})
+                                {quantity}x {name} {brand && `(${brand})`}
                               </li>
                             );
                           })}
-                        {Array.isArray(activity.items) &&
-                          activity.items.length > 2 && (
+                          {activity.items.length > 2 && (
                             <li
                               key={`more-${activity.id}`}
                               className="text-xs text-slate-400 italic"
@@ -576,7 +525,8 @@ function Dashboard() {
                               ...dan {activity.items.length - 2} item lainnya
                             </li>
                           )}
-                      </ul>
+                        </ul>
+                      )}
                       <p className="text-right font-semibold mt-1">
                         Rp{" "}
                         {new Intl.NumberFormat("id-ID").format(
