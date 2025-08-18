@@ -1,35 +1,49 @@
-// src/components/ProtectedRoute.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Tambahkan useRef
 import { Navigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 function ProtectedRoute({ session, children }) {
   const [isValidating, setIsValidating] = useState(true);
   const [isSessionValid, setIsSessionValid] = useState(false);
+  // Gunakan useRef untuk mencegah validasi berulang
+  const isMounted = useRef(false);
 
   useEffect(() => {
+    isMounted.current = true; // Komponen telah dimuat
+
+    // Fungsi async untuk memvalidasi sesi
     const validateSession = async () => {
-      if (!session) {
-        setIsSessionValid(false);
-        setIsValidating(false);
+      // Pastikan hanya berjalan jika komponen sudah dimuat dan sesi ada
+      if (!isMounted.current || !session) {
+        if (isMounted.current) {
+          setIsSessionValid(false);
+          setIsValidating(false);
+        }
         return;
       }
 
-      // Ini adalah kunci untuk mendeteksi token yang sudah tidak valid
+      // Coba perbarui sesi secara paksa
       const { data, error } = await supabase.auth.refreshSession();
 
-      if (error || !data.session) {
-        console.log(
-          "Sesi tidak valid atau telah dihapus, mengarahkan ke halaman login.",
-        );
-        setIsSessionValid(false);
-      } else {
-        setIsSessionValid(true);
+      if (isMounted.current) {
+        if (error || !data.session) {
+          console.log(
+            "Sesi tidak valid atau telah dihapus, mengarahkan ke halaman login.",
+          );
+          setIsSessionValid(false);
+        } else {
+          setIsSessionValid(true);
+        }
+        setIsValidating(false);
       }
-      setIsValidating(false);
     };
 
     validateSession();
+
+    // Cleanup function: Set isMounted menjadi false saat komponen dilepas
+    return () => {
+      isMounted.current = false;
+    };
   }, [session]);
 
   if (isValidating) {
