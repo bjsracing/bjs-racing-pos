@@ -1,39 +1,39 @@
 // src/components/ImportExcelButton.jsx
 
-import { useRef, useState, useEffect } from "react"; // Tambahkan useState dan useEffect
+import { useRef, useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { FiUpload } from "react-icons/fi";
-import { supabase } from "../supabaseClient.js"; // Import supabase
+import { supabase } from "../supabaseClient.js";
 
 function ImportExcelButton({ onDataUpload }) {
   const fileInputRef = useRef(null);
-  const [userRole, setUserRole] = useState(null); // State untuk menyimpan peran pengguna
+  const [userRole, setUserRole] = useState(null);
 
-  // Ambil peran pengguna saat komponen dimuat
+  // Gunakan onAuthStateChange untuk mendengarkan perubahan sesi dan data pengguna
   useEffect(() => {
-    const fetchUserRole = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
         const { data: profile, error } = await supabase
           .from("profiles")
           .select("role")
-          .eq("id", user.id)
+          .eq("id", session.user.id)
           .single();
         if (profile) {
           setUserRole(profile.role);
         }
+      } else {
+        setUserRole(null); // Atur peran menjadi null jika pengguna logout
       }
-    };
-    fetchUserRole();
+    });
+    // Hapus subscription saat komponen di-unmount
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleFileChange = (event) => {
-    // Validasi peran pengguna sebelum melanjutkan
     if (userRole !== "admin" && userRole !== "owner") {
       alert("Akses ditolak. Hanya akun admin yang dapat mengimpor data.");
-      // Hentikan proses
       event.target.value = "";
       return;
     }
@@ -41,6 +41,7 @@ function ImportExcelButton({ onDataUpload }) {
     const file = event.target.files[0];
     if (!file) return;
 
+    // ... sisa kode handleFileChange tidak berubah
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -49,7 +50,6 @@ function ImportExcelButton({ onDataUpload }) {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(worksheet);
-
         onDataUpload(json);
       } catch (error) {
         console.error("Error reading or parsing Excel file", error);
