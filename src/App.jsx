@@ -1,10 +1,9 @@
 // src/App.jsx
 import { useState, useEffect } from "react";
-import { Routes, Route, Outlet } from "react-router-dom";
+import { Routes, Route, Outlet, Navigate } from "react-router-dom"; // Tambahkan Navigate
 import { supabase } from "./supabaseClient.js";
 import Navbar from "./components/Navbar.jsx";
 import Header from "./components/Header.jsx";
-import ProtectedRoute from "./components/ProtectedRoute.jsx"; // <-- Pastikan ini ada
 import Dashboard from "./pages/Dashboard.jsx";
 import Produk from "./pages/Produk.jsx";
 import Pos from "./pages/Pos.jsx";
@@ -31,7 +30,6 @@ import CetakDokumenPage from "./pages/CetakDokumenPage.jsx";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-
   return (
     <div className="h-screen bg-orange-100 flex">
       <Navbar
@@ -48,20 +46,45 @@ function MainLayout() {
   );
 }
 
+// 📌 Perbaikan dimulai dari sini
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    // Fungsi untuk mendapatkan sesi dan memvalidasi peran pengguna
+    const checkSessionAndRole = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+
+      // Jika ada sesi, periksa peran di tabel profiles
+      if (currentSession) {
+        // Coba perbarui sesi secara paksa
+        const { data, error } = await supabase.auth.refreshSession();
+
+        if (error || !data.session) {
+          await supabase.auth.signOut(); // Logout jika sesi tidak valid
+          setSession(null);
+        } else {
+          setSession(data.session);
+        }
+      } else {
+        setSession(null);
+      }
       setLoading(false);
-    });
+    };
+
+    checkSessionAndRole();
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      // Tidak perlu memanggil checkSessionAndRole lagi di sini
+      // Cukup set newSession, karena validasi utama sudah di atas
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -76,54 +99,58 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/cetak/:tipe/:id"
-        element={
-          <ProtectedRoute session={session}>
-            <CetakDokumenPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute session={session}>
-            <MainLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        <Route path="pos" element={<Pos />} />
-        <Route path="penjualan-grosir">
-          <Route index element={<PenjualanGrosir />} />
-          <Route path="baru" element={<FormPesananGrosir />} />
-          <Route path="edit/:soId" element={<FormPesananGrosir />} />
-          <Route path="detail/:soId" element={<DetailPesananGrosir />} />
-          <Route path="nota/baru/:orderId" element={<FormNotaGrosir />} />
-        </Route>
-        <Route path="nota/detail/:invoiceId" element={<DetailNotaPage />} />
-        <Route path="produk">
-          <Route index element={<Produk />} />
-          <Route path="riwayat/:productId" element={<RiwayatProduk />} />
-        </Route>
-        <Route path="suppliers" element={<Suppliers />} />
-        <Route path="pembelian" element={<Pembelian />} />
-        <Route path="pembelian/baru" element={<FormPembelian />} />
-        <Route path="pembelian/edit/:poId" element={<FormPembelian />} />
-        <Route path="pembelian/detail/:poId" element={<DetailPembelian />} />
-        <Route path="pelanggan" element={<Customers />} />
-        <Route path="permintaan-pelanggan" element={<PermintaanPelanggan />} />
-        <Route path="pengeluaran" element={<Expenses />} />
-        <Route path="/laporan/laba-rugi" element={<LaporanLabaRugi />} />
-        <Route
-          path="laporan-produk-terlaris"
-          element={<LaporanProdukTerlaris />}
-        />
-        <Route path="laporan-produk-pilok" element={<LaporanProdukPilok />} />
-        <Route path="histori-transaksi" element={<TransactionHistory />} />
-        <Route path="histori-stok" element={<StockHistory />} />
-        <Route path="*" element={<Dashboard />} />
-      </Route>
+
+      {/* RUTE YANG MEMERLUKAN AUTENTIKASI */}
+      {session ? (
+        <>
+          <Route path="/cetak/:tipe/:id" element={<CetakDokumenPage />} />
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="pos" element={<Pos />} />
+            <Route path="penjualan-grosir">
+              <Route index element={<PenjualanGrosir />} />
+              <Route path="baru" element={<FormPesananGrosir />} />
+              <Route path="edit/:soId" element={<FormPesananGrosir />} />
+              <Route path="detail/:soId" element={<DetailPesananGrosir />} />
+              <Route path="nota/baru/:orderId" element={<FormNotaGrosir />} />
+            </Route>
+            <Route path="nota/detail/:invoiceId" element={<DetailNotaPage />} />
+            <Route path="produk">
+              <Route index element={<Produk />} />
+              <Route path="riwayat/:productId" element={<RiwayatProduk />} />
+            </Route>
+            <Route path="suppliers" element={<Suppliers />} />
+            <Route path="pembelian" element={<Pembelian />} />
+            <Route path="pembelian/baru" element={<FormPembelian />} />
+            <Route path="pembelian/edit/:poId" element={<FormPembelian />} />
+            <Route
+              path="pembelian/detail/:poId"
+              element={<DetailPembelian />}
+            />
+            <Route path="pelanggan" element={<Customers />} />
+            <Route
+              path="permintaan-pelanggan"
+              element={<PermintaanPelanggan />}
+            />
+            <Route path="pengeluaran" element={<Expenses />} />
+            <Route path="/laporan/laba-rugi" element={<LaporanLabaRugi />} />
+            <Route
+              path="laporan-produk-terlaris"
+              element={<LaporanProdukTerlaris />}
+            />
+            <Route
+              path="laporan-produk-pilok"
+              element={<LaporanProdukPilok />}
+            />
+            <Route path="histori-transaksi" element={<TransactionHistory />} />
+            <Route path="histori-stok" element={<StockHistory />} />
+            <Route path="*" element={<Dashboard />} />
+          </Route>
+        </>
+      ) : (
+        // Redirect ke login jika tidak ada sesi
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      )}
     </Routes>
   );
 }
