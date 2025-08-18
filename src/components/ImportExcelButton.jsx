@@ -1,11 +1,43 @@
-import { useRef } from "react";
-import * as XLSX from "xlsx"; // Import library xlsx
+// src/components/ImportExcelButton.jsx
+
+import { useRef, useState, useEffect } from "react"; // Tambahkan useState dan useEffect
+import * as XLSX from "xlsx";
 import { FiUpload } from "react-icons/fi";
+import { supabase } from "../supabaseClient.js"; // Import supabase
 
 function ImportExcelButton({ onDataUpload }) {
   const fileInputRef = useRef(null);
+  const [userRole, setUserRole] = useState(null); // State untuk menyimpan peran pengguna
+
+  // Ambil peran pengguna saat komponen dimuat
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        if (profile) {
+          setUserRole(profile.role);
+        }
+      }
+    };
+    fetchUserRole();
+  }, []);
 
   const handleFileChange = (event) => {
+    // Validasi peran pengguna sebelum melanjutkan
+    if (userRole !== "admin" && userRole !== "owner") {
+      alert("Akses ditolak. Hanya akun admin yang dapat mengimpor data.");
+      // Hentikan proses
+      event.target.value = "";
+      return;
+    }
+
     const file = event.target.files[0];
     if (!file) return;
 
@@ -18,7 +50,6 @@ function ImportExcelButton({ onDataUpload }) {
         const worksheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(worksheet);
 
-        // Kirim data JSON hasil baca ke parent component (Produk.jsx)
         onDataUpload(json);
       } catch (error) {
         console.error("Error reading or parsing Excel file", error);
@@ -26,8 +57,6 @@ function ImportExcelButton({ onDataUpload }) {
       }
     };
     reader.readAsArrayBuffer(file);
-
-    // Reset file input agar bisa upload file yg sama lagi
     event.target.value = "";
   };
 
@@ -38,7 +67,7 @@ function ImportExcelButton({ onDataUpload }) {
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept=".xlsx, .xls, .csv" // Hanya menerima file excel/csv
+        accept=".xlsx, .xls, .csv"
       />
       <button
         onClick={() => fileInputRef.current.click()}
