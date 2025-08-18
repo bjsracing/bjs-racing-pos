@@ -71,8 +71,8 @@ function Navbar({ isOpen, onLinkClick }) {
   ];
 
   const handleLogout = async () => {
+    // 📌 Hapus `Maps("/login")` di sini
     await supabase.auth.signOut();
-    navigate("/login");
   };
 
   return (
