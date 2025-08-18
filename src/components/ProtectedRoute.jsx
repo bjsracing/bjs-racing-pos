@@ -38,7 +38,7 @@ function ProtectedRoute({ session, children }) {
     validateSession();
   }, [session]); // Jalankan efek ini setiap kali props 'session' berubah
 
-  // 5. Tampilkan loading screen saat sedang memvalidasi
+  // 5. Tampilkan loading screen benar saat sedang memvalidasi
   if (isValidating) {
     return (
       <div className="flex justify-center items-center h-screen bg-slate-800 text-white">
