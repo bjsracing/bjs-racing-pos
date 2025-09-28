@@ -15,6 +15,7 @@ import {
   FiStar,
   FiBriefcase,
   FiShoppingBag,
+  FiTag,
 } from "react-icons/fi";
 import { supabase } from "../supabaseClient.js";
 
@@ -41,6 +42,7 @@ function Navbar({ isOpen, onLinkClick }) {
       path: "/pesanan-online",
       icon: <FiShoppingBag />,
     },
+    { name: "Manajemen Voucher", path: "/manajemen-voucher", icon: <FiTag /> },
     {
       name: "Penjualan Grosir",
       path: "/penjualan-grosir",

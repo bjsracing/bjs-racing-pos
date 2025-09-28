@@ -29,6 +29,8 @@ import RiwayatProduk from "./pages/RiwayatProduk.jsx";
 import CetakDokumenPage from "./pages/CetakDokumenPage.jsx";
 import PesananOnlinePage from "./pages/PesananOnline";
 import DetailPesananOnlinePage from "./pages/DetailPesananOnline";
+import VoucherListPage from "./pages/VoucherListPage";
+import VoucherForm from "./pages/VoucherForm";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -113,6 +115,12 @@ function App() {
             <Route
               path="/pesanan-online/:orderId"
               element={<DetailPesananOnlinePage />}
+            />
+            <Route path="/manajemen-voucher" element={<VoucherListPage />} />
+            <Route path="/manajemen-voucher/form" element={<VoucherForm />} />
+            <Route
+              path="/manajemen-voucher/form/:voucherId"
+              element={<VoucherForm />}
             />
             <Route path="penjualan-grosir">
               <Route index element={<PenjualanGrosir />} />
