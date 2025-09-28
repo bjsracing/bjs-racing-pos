@@ -27,6 +27,8 @@ import LaporanProdukTerlaris from "./pages/LaporanProdukTerlaris";
 import LaporanProdukPilok from "./pages/LaporanProdukPilok";
 import RiwayatProduk from "./pages/RiwayatProduk.jsx";
 import CetakDokumenPage from "./pages/CetakDokumenPage.jsx";
+import PesananOnlinePage from "./pages/PesananOnline";
+import DetailPesananOnlinePage from "./pages/DetailPesananOnline";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -107,6 +109,11 @@ function App() {
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="pos" element={<Pos />} />
+            <Route path="pesanan-online" element={<PesananOnlinePage />} />
+            <Route
+              path="/pesanan-online/:orderId"
+              element={<DetailPesananOnlinePage />}
+            />
             <Route path="penjualan-grosir">
               <Route index element={<PenjualanGrosir />} />
               <Route path="baru" element={<FormPesananGrosir />} />
