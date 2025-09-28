@@ -225,7 +225,6 @@ const DetailPesananGrosir = () => {
               <span>Lihat Nota Terkait</span>
             </Link>
           )}
-          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 // File: src/pages/DetailPesananOnline.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient"; // Sesuaikan path
+import { supabase } from "../supabaseClient.js";
 
 // Helper functions
 const formatRupiah = (number) =>
