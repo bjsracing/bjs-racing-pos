@@ -41,7 +41,6 @@ function Navbar({ isOpen, onLinkClick }) {
       path: "/pesanan-online",
       icon: <FiShoppingBag />,
     },
-    { name: "Manajemen Produk", path: "/produk", icon: <RxCube /> },
     {
       name: "Penjualan Grosir",
       path: "/penjualan-grosir",
