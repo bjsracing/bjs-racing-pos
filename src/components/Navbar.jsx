@@ -14,6 +14,7 @@ import {
   FiShoppingCart,
   FiStar,
   FiBriefcase,
+  FiShoppingBag,
 } from "react-icons/fi";
 import { supabase } from "../supabaseClient.js";
 
