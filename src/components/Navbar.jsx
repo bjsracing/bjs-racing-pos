@@ -34,6 +34,13 @@ function Navbar({ isOpen, onLinkClick }) {
   const navLinks = [
     { name: "Dashboard", path: "/", icon: <RxDashboard /> },
     { name: "POS", path: "/pos", icon: <RxArrowRight /> },
+
+    {
+      name: "Pesanan Online",
+      path: "/pesanan-online",
+      icon: <FiShoppingBag />,
+    },
+    { name: "Manajemen Produk", path: "/produk", icon: <RxCube /> },
     {
       name: "Penjualan Grosir",
       path: "/penjualan-grosir",
