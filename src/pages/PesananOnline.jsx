@@ -1,6 +1,6 @@
 // File: src/pages/PesananOnline.jsx
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "../lib/supabaseClient"; // Sesuaikan path ke supabase client Anda
+import { supabase } from "../supabaseClient.js";
 import { Link } from "react-router-dom"; // Asumsi Anda menggunakan react-router-dom
 
 // Helper functions (bisa diletakkan di file terpisah)

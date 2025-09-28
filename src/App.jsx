@@ -109,7 +109,7 @@ function App() {
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="pos" element={<Pos />} />
-            <Route path="pesanan-online" element={<PesananOnlinePage />} />
+            <Route path="/pesanan-online" element={<PesananOnlinePage />} />
             <Route
               path="/pesanan-online/:orderId"
               element={<DetailPesananOnlinePage />}
