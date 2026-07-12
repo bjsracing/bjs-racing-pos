@@ -44,6 +44,7 @@ function Produk() {
   const [showLowStockOnly, setShowLowStockOnly] = useState(
     () => location.state?.filter === "stok_rendah",
   );
+  const [showOnlyUnupdated, setShowOnlyUnupdated] = useState(false);
   const [merekOptions, setMerekOptions] = useState([]);
   const [kategoriOptions, setKategoriOptions] = useState([]);
   const [supplierOptions, setSupplierOptions] = useState([]);
@@ -201,6 +202,11 @@ function Produk() {
     /* ... (Fungsi ini tetap sama) */
   };
 
+  const cutoffDate = new Date("2026-04-20T23:59:59");
+  const filteredProducts = showOnlyUnupdated
+    ? products.filter((p) => new Date(p.updated_at) <= cutoffDate)
+    : products;
+
   if (loading && products.length === 0)
     return <div className="p-4 text-center">Memuat data produk...</div>;
 
@@ -275,6 +281,19 @@ function Produk() {
             {showLowStockOnly ? "Tampilkan Semua" : "Hanya Stok Rendah"}
           </span>
         </button>
+        <button
+          onClick={() => setShowOnlyUnupdated(!showOnlyUnupdated)}
+          className={`flex items-center justify-center gap-2 font-bold py-2 px-4 rounded-lg ${
+            showOnlyUnupdated
+              ? "bg-orange-400 text-orange-900"
+              : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          <FiClock />
+          <span>
+            {showOnlyUnupdated ? "Tampilkan Semua" : "Belum Diupdate"}
+          </span>
+        </button>
       </div>
       {showLowStockOnly && (
         <div
@@ -282,6 +301,14 @@ function Produk() {
           role="alert"
         >
           <p className="font-bold">Mode Stok Rendah Aktif</p>
+        </div>
+      )}
+      {showOnlyUnupdated && (
+        <div
+          className="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-4"
+          role="alert"
+        >
+          <p className="font-bold">Mode Belum Diupdate Aktif — Menampilkan produk yang belum diupdate sejak 20 April 2026</p>
         </div>
       )}
       <div className="hidden md:block bg-white shadow-md rounded-lg overflow-x-auto">
@@ -328,13 +355,16 @@ function Produk() {
                 Status
               </th>
               <th className="px-5 py-3 border-b-2 border-slate-300 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                Terakhir Update
+              </th>
+              <th className="px-5 py-3 border-b-2 border-slate-300 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Aksi
               </th>
             </tr>
           </thead>
           <tbody>
-            {products.length > 0 ? (
-              products.map((product) => {
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => {
                 const isLowStock = product.stok <= product.stok_min;
                 return (
                   <tr
@@ -406,6 +436,35 @@ function Produk() {
                       </span>
                     </td>
                     <td className="px-5 py-4 border-b border-slate-200 text-sm text-center whitespace-nowrap">
+                      {(() => {
+                        const updatedAt = new Date(product.updated_at);
+                        const isUpdated = updatedAt > cutoffDate;
+                        const formattedDate = new Intl.DateTimeFormat("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        }).format(updatedAt);
+                        return (
+                          <span
+                            className={`px-2 py-1 text-xs font-semibold leading-tight rounded-full ${
+                              isUpdated
+                                ? "bg-green-100 text-green-800"
+                                : "bg-orange-100 text-orange-800"
+                            }`}
+                            title={`Terakhir diupdate: ${formattedDate}`}
+                          >
+                            {isUpdated
+                              ? "Sudah Diupdate"
+                              : "Belum Diupdate"}
+                            <br />
+                            <span className="font-normal opacity-75">
+                              {formattedDate}
+                            </span>
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-5 py-4 border-b border-slate-200 text-sm text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => handleOpenEditModal(product)}
@@ -437,7 +496,7 @@ function Produk() {
               })
             ) : (
               <tr>
-                <td colSpan="12" className="text-center py-10 text-slate-500">
+                <td colSpan="13" className="text-center py-10 text-slate-500">
                   Tidak ada data produk yang cocok.
                 </td>
               </tr>
@@ -447,8 +506,8 @@ function Produk() {
       </div>
       {/* Tampilan Mobile */}
       <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {products.length > 0 ? (
-          products.map((product) => {
+        {filteredProducts.length > 0 ? (
+          filteredProducts.map((product) => {
             const isLowStock = product.stok <= product.stok_min;
             return (
               <div
@@ -490,6 +549,31 @@ function Produk() {
                 </div>
 
                 <div className="my-3 border-t border-slate-200"></div>
+
+                {/* Info Update Status */}
+                <div className="mb-3">
+                  {(() => {
+                    const updatedAt = new Date(product.updated_at);
+                    const isUpdated = updatedAt > cutoffDate;
+                    const formattedDate = new Intl.DateTimeFormat("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    }).format(updatedAt);
+                    return (
+                      <span
+                        className={`px-2 py-1 text-xs font-semibold leading-tight rounded-full ${
+                          isUpdated
+                            ? "bg-green-100 text-green-800"
+                            : "bg-orange-100 text-orange-800"
+                        }`}
+                      >
+                        {isUpdated ? "Sudah Diupdate" : "Belum Diupdate"} ·{" "}
+                        {formattedDate}
+                      </span>
+                    );
+                  })()}
+                </div>
 
                 {/* Info Stok & Harga */}
                 <div className="flex justify-between items-end">

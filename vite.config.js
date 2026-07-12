@@ -4,9 +4,10 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: "0.0.0.0", // Wajib ada agar Replit bisa mendeteksi server
+    host: "0.0.0.0",
+    port: 3000,
     allowedHosts: [
-      ".replit.dev", // Izinkan semua alamat dari Replit
+      ".replit.dev",
     ],
   },
 });
