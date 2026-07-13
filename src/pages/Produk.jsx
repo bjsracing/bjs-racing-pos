@@ -38,7 +38,10 @@ function Produk() {
   const [activeFilters, setActiveFilters] = useState({
     merek: "semua",
     kategori: "semua",
-    supplier: "semua", // <-- Tambahkan ini
+    ukuran: "semua",
+    lini_produk: "semua",
+    price_range: "semua",
+    supplier: "semua",
     status: "semua",
   });
   const [showLowStockOnly, setShowLowStockOnly] = useState(
@@ -48,6 +51,8 @@ function Produk() {
   const [currentPage, setCurrentPage] = useState(1);
   const [merekOptions, setMerekOptions] = useState([]);
   const [kategoriOptions, setKategoriOptions] = useState([]);
+  const [ukuranOptions, setUkuranOptions] = useState([]);
+  const [liniProdukOptions, setLiniProdukOptions] = useState([]);
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -68,7 +73,10 @@ function Produk() {
         kategori_filter: activeFilters.kategori,
         status_filter: activeFilters.status,
         low_stock_only: showLowStockOnly,
-        supplier_filter: activeFilters.supplier, // <-- TAMBAHKAN BARIS INI
+        supplier_filter: activeFilters.supplier,
+        ukuran_filter: activeFilters.ukuran,
+        lini_produk_filter: activeFilters.lini_produk,
+        price_range: activeFilters.price_range,
       });
       if (isActive) {
         if (error) {
@@ -110,6 +118,24 @@ function Produk() {
         console.error("Error fetching kategori:", kategorisError);
       else if (kategorisData) {
         setKategoriOptions(kategorisData.map((item) => item.kategori));
+      }
+
+      // Panggil RPC untuk Ukuran
+      const { data: ukuranData, error: ukuranError } = await supabase.rpc(
+        "get_distinct_ukuran",
+      );
+      if (ukuranError) console.error("Error fetching ukuran:", ukuranError);
+      else if (ukuranData) {
+        setUkuranOptions(ukuranData.map((item) => item.ukuran));
+      }
+
+      // Panggil RPC untuk Lini Produk
+      const { data: liniData, error: liniError } = await supabase.rpc(
+        "get_distinct_lini_produk",
+      );
+      if (liniError) console.error("Error fetching lini produk:", liniError);
+      else if (liniData) {
+        setLiniProdukOptions(liniData.map((item) => item.lini_produk));
       }
     };
     fetchOptions();
@@ -244,9 +270,11 @@ function Produk() {
         onClose={() => setIsFilterModalOpen(false)}
         onApplyFilter={setActiveFilters}
         initialFilters={activeFilters}
-        merekOptions={merekOptions} // <-- Gunakan state asli
-        kategoriOptions={kategoriOptions} // <-- Gunakan state asli
+        merekOptions={merekOptions}
+        kategoriOptions={kategoriOptions}
         supplierOptions={supplierOptions}
+        ukuranOptions={ukuranOptions}
+        liniProdukOptions={liniProdukOptions}
       />
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold">Manajemen Produk</h1>
@@ -275,10 +303,20 @@ function Produk() {
         </div>
         <button
           onClick={() => setIsFilterModalOpen(true)}
-          className="flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-50"
+          className="relative flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg hover:bg-slate-50"
         >
           <FiFilter />
           <span>Filter</span>
+          {(() => {
+            const count = Object.values(activeFilters).filter(
+              (v) => v !== "semua"
+            ).length;
+            return count > 0 ? (
+              <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                {count}
+              </span>
+            ) : null;
+          })()}
         </button>
         <button
           onClick={() => setShowLowStockOnly(!showLowStockOnly)}
@@ -307,6 +345,38 @@ function Produk() {
           </span>
         </button>
       </div>
+      {Object.values(activeFilters).some((v) => v !== "semua") && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {Object.entries(activeFilters).map(([key, value]) => {
+            if (value === "semua") return null;
+            const labels = {
+              merek: "Merek",
+              kategori: "Kategori",
+              ukuran: "Ukuran",
+              lini_produk: "Lini",
+              price_range: "Harga",
+              supplier: "Supplier",
+              status: "Status",
+            };
+            return (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full"
+              >
+                {labels[key]}: {value}
+                <button
+                  onClick={() =>
+                    setActiveFilters((prev) => ({ ...prev, [key]: "semua" }))
+                  }
+                  className="ml-1 text-blue-600 hover:text-blue-900 font-bold"
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
       {showLowStockOnly && (
         <div
           className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4"

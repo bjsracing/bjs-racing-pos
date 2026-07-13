@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 
-// Menerima prop baru: initialFilters & supplierOptions
+const PRICE_RANGE_OPTIONS = [
+  { value: "semua", label: "Semua Harga" },
+  { value: "nol", label: "Rp 0 (Belum diisi)" },
+  { value: "0-15000", label: "Rp 1 - Rp 15.000" },
+  { value: "15000-25000", label: "Rp 15.000 - Rp 25.000" },
+  { value: "25000-50000", label: "Rp 25.000 - Rp 50.000" },
+  { value: "50000-100000", label: "Rp 50.000 - Rp 100.000" },
+  { value: "100000+", label: "Di atas Rp 100.000" },
+];
+
 function FilterModal({
   isOpen,
   onClose,
@@ -9,6 +18,8 @@ function FilterModal({
   merekOptions,
   kategoriOptions,
   supplierOptions,
+  ukuranOptions,
+  liniProdukOptions,
 }) {
   // State filter sekarang diinisialisasi dari props
   const [filters, setFilters] = useState(initialFilters);
@@ -29,7 +40,10 @@ function FilterModal({
     const defaultFilters = {
       merek: "semua",
       kategori: "semua",
-      supplier: "semua", // Ditambahkan
+      ukuran: "semua",
+      lini_produk: "semua",
+      price_range: "semua",
+      supplier: "semua",
       status: "semua",
     };
     setFilters(defaultFilters);
@@ -89,6 +103,80 @@ function FilterModal({
               {kategoriOptions.map((k) => (
                 <option key={k} value={k}>
                   {k}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* --- FITUR BARU: Dropdown Ukuran --- */}
+          <div>
+            <label
+              htmlFor="filter-ukuran"
+              className="block mb-1 text-sm font-medium text-slate-700"
+            >
+              Ukuran
+            </label>
+            <select
+              id="ukuran"
+              value={filters.ukuran || "semua"}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, ukuran: e.target.value }))
+              }
+              className="w-full p-2 border rounded bg-white"
+            >
+              <option value="semua">Semua Ukuran</option>
+              {(ukuranOptions || []).map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* --- FITUR BARU: Dropdown Lini Produk --- */}
+          <div>
+            <label
+              htmlFor="filter-lini-produk"
+              className="block mb-1 text-sm font-medium text-slate-700"
+            >
+              Lini Produk
+            </label>
+            <select
+              id="lini_produk"
+              value={filters.lini_produk || "semua"}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, lini_produk: e.target.value }))
+              }
+              className="w-full p-2 border rounded bg-white"
+            >
+              <option value="semua">Semua Lini Produk</option>
+              {(liniProdukOptions || []).map((lp) => (
+                <option key={lp} value={lp}>
+                  {lp}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* --- FITUR BARU: Dropdown Harga Jual Range --- */}
+          <div>
+            <label
+              htmlFor="filter-price-range"
+              className="block mb-1 text-sm font-medium text-slate-700"
+            >
+              Harga Jual
+            </label>
+            <select
+              id="price_range"
+              value={filters.price_range || "semua"}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, price_range: e.target.value }))
+              }
+              className="w-full p-2 border rounded bg-white"
+            >
+              {PRICE_RANGE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>
