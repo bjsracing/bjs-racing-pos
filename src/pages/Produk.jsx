@@ -45,6 +45,7 @@ function Produk() {
     () => location.state?.filter === "stok_rendah",
   );
   const [showOnlyUnupdated, setShowOnlyUnupdated] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [merekOptions, setMerekOptions] = useState([]);
   const [kategoriOptions, setKategoriOptions] = useState([]);
   const [supplierOptions, setSupplierOptions] = useState([]);
@@ -207,6 +208,17 @@ function Produk() {
     ? products.filter((p) => new Date(p.updated_at) <= cutoffDate)
     : products;
 
+  const itemsPerPage = 50;
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, activeFilters, showLowStockOnly, showOnlyUnupdated]);
+
   if (loading && products.length === 0)
     return <div className="p-4 text-center">Memuat data produk...</div>;
 
@@ -364,7 +376,7 @@ function Produk() {
           </thead>
           <tbody>
             {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => {
+              paginatedProducts.map((product) => {
                 const isLowStock = product.stok <= product.stok_min;
                 return (
                   <tr
@@ -507,7 +519,7 @@ function Produk() {
       {/* Tampilan Mobile */}
       <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
         {filteredProducts.length > 0 ? (
-          filteredProducts.map((product) => {
+          paginatedProducts.map((product) => {
             const isLowStock = product.stok <= product.stok_min;
             return (
               <div
@@ -630,6 +642,61 @@ function Produk() {
           <p className="text-slate-500 sm:col-span-2">Tidak ada produk.</p>
         )}
       </div>
+      {/* Pagination Controls */}
+      {filteredProducts.length > itemsPerPage && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-slate-500">
+            Menampilkan {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredProducts.length)} dari {filteredProducts.length} produk
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((page) => {
+                if (totalPages <= 7) return true;
+                if (page === 1 || page === totalPages) return true;
+                if (Math.abs(page - currentPage) <= 1) return true;
+                return false;
+              })
+              .reduce((acc, page, idx, arr) => {
+                if (idx > 0 && page - arr[idx - 1] > 1) {
+                  acc.push("...");
+                }
+                acc.push(page);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 py-1.5 text-sm text-slate-400">…</span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => setCurrentPage(item)}
+                    className={`px-3 py-1.5 text-sm rounded-lg border ${
+                      currentPage === item
+                        ? "bg-orange-500 text-white border-orange-500 font-bold"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
