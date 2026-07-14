@@ -9,12 +9,14 @@ import {
   FiFilter,
   FiAlertTriangle,
   FiClock,
+  FiMic,
 } from "react-icons/fi";
 import ProductModal from "../components/ProductModal.jsx";
 import ViewNoteModal from "../components/ViewNoteModal.jsx";
 import FilterModal from "../components/FilterModal.jsx";
 import ImportExcelButton from "../components/ImportExcelButton.jsx";
 import ExportExcelButton from "../components/ExportExcelButton.jsx";
+import { useVoiceSearch } from "../hooks/useVoiceSearch.js";
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -35,13 +37,24 @@ function Produk() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const {
+    isListening,
+    isSupported: voiceSupported,
+    transcript,
+    startListening,
+    stopListening,
+    error: voiceError,
+  } = useVoiceSearch({
+    lang: "id-ID",
+    onResult: (text) => setSearchTerm(text),
+  });
   const [activeFilters, setActiveFilters] = useState({
     merek: "semua",
     kategori: "semua",
-    ukuran: "semua",
     lini_produk: "semua",
-    price_range: "semua",
+    ukuran: "semua",
     supplier: "semua",
+    price_range: "semua",
     status: "semua",
   });
   const [showLowStockOnly, setShowLowStockOnly] = useState(
@@ -49,10 +62,12 @@ function Produk() {
   );
   const [showOnlyUnupdated, setShowOnlyUnupdated] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [merekOptions, setMerekOptions] = useState([]);
-  const [kategoriOptions, setKategoriOptions] = useState([]);
-  const [ukuranOptions, setUkuranOptions] = useState([]);
-  const [liniProdukOptions, setLiniProdukOptions] = useState([]);
+  const [cascadeOptions, setCascadeOptions] = useState({
+    merek: [], kategori: [], lini_produk: [], ukuran: [], supplier: [],
+  });
+  const [priceCounts, setPriceCounts] = useState({
+    nol: 0, "1-15k": 0, "15k-25k": 0, "25k-50k": 0, "50k-100k": 0, "100k+": 0,
+  });
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -95,57 +110,97 @@ function Produk() {
   }, [debouncedSearchTerm, activeFilters, showLowStockOnly, refreshTrigger]);
 
   useEffect(() => {
-    const fetchOptions = async () => {
-      // Pengambilan data supplier tetap sama
-      const { data: suppliersData } = await supabase
-        .from("suppliers")
-        .select("id, nama_supplier");
-      if (suppliersData) setSupplierOptions(suppliersData);
-
-      // Panggil RPC untuk Merek
-      const { data: mereksData, error: mereksError } =
-        await supabase.rpc("get_distinct_merek");
-      if (mereksError) console.error("Error fetching merek:", mereksError);
-      else if (mereksData) {
-        setMerekOptions(mereksData.map((item) => item.merek));
-      }
-
-      // Panggil RPC untuk Kategori
-      const { data: kategorisData, error: kategorisError } = await supabase.rpc(
-        "get_distinct_kategori",
-      );
-      if (kategorisError)
-        console.error("Error fetching kategori:", kategorisError);
-      else if (kategorisData) {
-        setKategoriOptions(kategorisData.map((item) => item.kategori));
-      }
-
-      // Panggil RPC untuk Ukuran
-      const { data: ukuranData, error: ukuranError } = await supabase.rpc(
-        "get_distinct_ukuran",
-      );
-      if (ukuranError) console.error("Error fetching ukuran:", ukuranError);
-      else if (ukuranData) {
-        setUkuranOptions(ukuranData.map((item) => item.ukuran));
-      }
-
-      // Panggil RPC untuk Lini Produk
-      const { data: liniData, error: liniError } = await supabase.rpc(
-        "get_distinct_lini_produk",
-      );
-      if (liniError) console.error("Error fetching lini produk:", liniError);
-      else if (liniData) {
-        setLiniProdukOptions(liniData.map((item) => item.lini_produk));
+    const fetchCascadeOptions = async () => {
+      const { data, error } = await supabase.rpc("get_cascade_filter_options", {
+        p_merek: activeFilters.merek,
+        p_kategori: activeFilters.kategori,
+        p_lini_produk: activeFilters.lini_produk,
+        p_ukuran: activeFilters.ukuran,
+        p_supplier: activeFilters.supplier,
+        p_status: activeFilters.status,
+        p_low_stock_only: showLowStockOnly,
+      });
+      if (error) {
+        console.error("Error fetching cascade options:", error);
+      } else if (data && data[0]) {
+        const d = data[0];
+        setCascadeOptions({
+          merek: d.merek || [],
+          kategori: d.kategori || [],
+          lini_produk: d.lini_produk || [],
+          ukuran: d.ukuran || [],
+          supplier: d.supplier || [],
+        });
+        setPriceCounts({
+          nol: d.price_nol || 0,
+          "1-15k": d.price_1_15k || 0,
+          "15k-25k": d.price_15k_25k || 0,
+          "25k-50k": d.price_25k_50k || 0,
+          "50k-100k": d.price_50k_100k || 0,
+          "100k+": d.price_100k_plus || 0,
+        });
       }
     };
-    fetchOptions();
-  }, [refreshTrigger]);
+    fetchCascadeOptions();
+  }, [activeFilters.merek, activeFilters.kategori, activeFilters.lini_produk,
+      activeFilters.ukuran, activeFilters.supplier, showLowStockOnly, refreshTrigger]);
+
+  useEffect(() => {
+    const fetchSupplierOptions = async () => {
+      const { data } = await supabase
+        .from("suppliers")
+        .select("id, nama_supplier");
+      if (data) setSupplierOptions(data);
+    };
+    fetchSupplierOptions();
+  }, []);
+
+  useEffect(() => {
+    if (voiceError === "not-allowed") {
+      alert("Izinkan akses mikrofon di browser untuk fitur pencarian suara.");
+    } else if (voiceError && voiceError !== "no-speech") {
+      console.error("Voice search error:", voiceError);
+    }
+  }, [voiceError]);
 
   useEffect(() => {
     if (location.state?.filter === "stok_rendah") {
       navigate(location.pathname, { state: {}, replace: true });
     }
   }, [location.state, navigate]);
+
+  const CASCADE_ORDER = ["merek", "kategori", "lini_produk", "ukuran", "supplier", "price_range", "status"];
+
+  const RESET_FILTERS = {
+    merek: "semua",
+    kategori: "semua",
+    lini_produk: "semua",
+    ukuran: "semua",
+    supplier: "semua",
+    price_range: "semua",
+    status: "semua",
+  };
+
+  const handleFilterChange = (key, value) => {
+    setActiveFilters((prev) => {
+      const next = { ...prev, [key]: value };
+      const changedIdx = CASCADE_ORDER.indexOf(key);
+      if (changedIdx >= 0) {
+        for (let i = changedIdx + 1; i < CASCADE_ORDER.length; i++) {
+          const k = CASCADE_ORDER[i];
+          if (k === "price_range" || k === "status") continue;
+          next[k] = "semua";
+        }
+      }
+      return next;
+    });
+    setCurrentPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setActiveFilters(RESET_FILTERS);
+    setCurrentPage(1);
+  };
 
   const handleOpenAddModal = () => {
     setProductToEdit(null);
@@ -268,13 +323,11 @@ function Produk() {
       <FilterModal
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
-        onApplyFilter={setActiveFilters}
-        initialFilters={activeFilters}
-        merekOptions={merekOptions}
-        kategoriOptions={kategoriOptions}
-        supplierOptions={supplierOptions}
-        ukuranOptions={ukuranOptions}
-        liniProdukOptions={liniProdukOptions}
+        onFilterChange={handleFilterChange}
+        onResetFilters={handleResetFilters}
+        filters={activeFilters}
+        cascadeOptions={cascadeOptions}
+        priceCounts={priceCounts}
       />
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold">Manajemen Produk</h1>
@@ -296,10 +349,30 @@ function Produk() {
           <input
             type="text"
             placeholder="Cari Kode, Nama, Merek, Kategori..."
-            className="w-full p-2 pl-10 border rounded-lg"
+            className={`w-full p-2 pl-10 pr-12 border rounded-lg ${
+              isListening ? "border-red-400 bg-red-50" : ""
+            }`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {voiceSupported && (
+            <button
+              onClick={isListening ? stopListening : startListening}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full transition-all ${
+                isListening
+                  ? "bg-red-500 text-white animate-pulse"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              }`}
+              title={isListening ? "Stop rekam" : "Cari dengan suara"}
+            >
+              <FiMic size={18} />
+            </button>
+          )}
+          {isListening && transcript && (
+            <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-white border border-slate-200 rounded-lg shadow-lg text-sm text-slate-500 italic z-10">
+              {transcript}
+            </div>
+          )}
         </div>
         <button
           onClick={() => setIsFilterModalOpen(true)}
