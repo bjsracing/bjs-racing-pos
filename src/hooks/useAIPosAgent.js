@@ -1,31 +1,44 @@
-// /home/user/bjs-racing-pos-review/useAIPosAgent.js
-import { useState, useCallback } from "react";
-import { supabase } from "../supabaseClient.js"; // sesuaikan import path dengan proyek Anda
+import { useState, useCallback, useRef } from "react";
+import { supabase } from "../supabaseClient.js";
+import { callGeminiProxy } from "../lib/geminiProxy.js";
 
-/**
- * Custom Hook untuk memproses perintah suara/teks kasir menggunakan AI Agent
- * Mendukung Google Gemini (Cloud Gratis) atau Ollama (Lokal Offline-First)
- */
+function escapeLike(str) {
+  return str.replace(/[%_]/g, "\\$&");
+}
+
 export function useAIPosAgent({
-  onAddProductToCart,     // Fungsi dari Pos.jsx untuk menambahkan produk ke cart: (product, qty) => void
-  onUpdateCartQuantity,   // Fungsi dari Pos.jsx untuk mengubah qty: (productId, qty) => void
-  onRemoveFromCart,       // Fungsi dari Pos.jsx untuk menghapus item dari cart: (productId) => void
-  onClearCart,            // Fungsi dari Pos.jsx untuk mereset/mengosongkan cart: () => void
-  aiProvider = "gemini",   // "gemini" atau "ollama"
-  geminiApiKey = "",      // Masukkan API key jika menggunakan provider "gemini" di frontend
-  ollamaUrl = "http://localhost:11434" // URL Ollama lokal
+  onAddProductToCart,
+  onUpdateCartQuantity,
+  onRemoveFromCart,
+  onClearCart,
+  aiProvider = "gemini",
+  ollamaUrl = "http://localhost:11434",
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [aiActions, setAiActions] = useState([]);
 
-  // Fungsi internal untuk mencari produk di Supabase berdasarkan nama dari hasil parse AI
+  const callbacksRef = useRef({
+    onAddProductToCart,
+    onUpdateCartQuantity,
+    onRemoveFromCart,
+    onClearCart,
+  });
+  callbacksRef.current = {
+    onAddProductToCart,
+    onUpdateCartQuantity,
+    onRemoveFromCart,
+    onClearCart,
+  };
+
   const findBestMatchingProduct = async (searchQuery) => {
+    if (!searchQuery || !searchQuery.trim()) return [];
     try {
+      const escaped = escapeLike(searchQuery.trim());
       const { data, error } = await supabase
         .from("products")
-        .select("*")
-        .or(`nama.ilike.%${searchQuery}%,kode.ilike.%${searchQuery}%,merek.ilike.%${searchQuery}%`)
+        .select("id, nama, merek, kode, kategori, harga_jual, harga_beli, stok, stok_min, satuan_dasar, satuan_pembelian, nilai_konversi, status")
+        .or(`nama.ilike.%${escaped}%,kode.ilike.%${escaped}%,merek.ilike.%${escaped}%`)
         .eq("status", "Aktif")
         .limit(3);
 
@@ -37,11 +50,10 @@ export function useAIPosAgent({
     }
   };
 
-  /**
-   * Mengirim teks ucapan kasir ke AI Agent untuk diparsing menjadi JSON Actions
-   */
   const processCommand = useCallback(async (inputText) => {
     if (!inputText || !inputText.trim()) return;
+
+    const sanitizedInput = inputText.trim().slice(0, 200);
 
     setIsProcessing(true);
     setError(null);
@@ -57,7 +69,7 @@ Anda dapat mengenali aksi-aksi berikut:
 4. CLEAR_CART: Kasir ingin mengosongkan keranjang. Contoh: "kosongkan keranjang", "reset transaksi", atau "batal semua".
 
 ATURAN OUTPUT:
-- Harus mengembalikan data dalam format JSON array murni tanpa komentar, penjelasan, atau markdown wrapper (seperti \`\`\`json ... \`\`\`).
+- Harus mengembalikan data dalam format JSON array murni tanpa komentar, penjelasan, atau markdown wrapper.
 - Skema JSON wajib berupa array objek dengan format:
   [
     {
@@ -78,78 +90,65 @@ Contoh output:
     try {
       let parsedActions = [];
 
-      // ==========================================
-      // INTEGRASI GOOGLE GEMINI 1.5 FLASH (API)
-      // ==========================================
       if (aiProvider === "gemini") {
-        if (!geminiApiKey) {
-          throw new Error("API Key Google Gemini belum dikonfigurasi.");
-        }
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
+        const resData = await callGeminiProxy({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: systemPrompt },
+                { text: `Input Kasir: "${sanitizedInput}"` },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
           },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  { text: systemPrompt },
-                  { text: `Input Kasir: "${inputText}"` }
-                ]
-              }
-            ],
-            generationConfig: {
-              responseMimeType: "application/json" // Memaksa Gemini mengembalikan JSON valid
-            }
-          })
         });
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error?.message || "Gagal menghubungi Gemini API");
+        const candidate = resData.candidates?.[0];
+        if (!candidate?.content?.parts?.[0]?.text) {
+          throw new Error(
+            "AI tidak dapat memproses perintah ini. Kemungkinan konten diblokir oleh filter keamanan.",
+          );
         }
-
-        const resData = await response.json();
-        const aiResponseText = resData.candidates[0].content.parts[0].text;
-        parsedActions = JSON.parse(aiResponseText.trim());
-      } 
-      // ==========================================
-      // INTEGRASI OLLAMA (LOKAL OFFLINE-FIRST)
-      // ==========================================
-      else if (aiProvider === "ollama") {
+        let aiText = candidate.content.parts[0].text.trim();
+        const jsonMatch = aiText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          aiText = jsonMatch[1].trim();
+        }
+        parsedActions = JSON.parse(aiText);
+      } else if (aiProvider === "ollama") {
         const response = await fetch(`${ollamaUrl}/api/chat`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "qwen2.5:3b", // Anda bisa ganti ke llama3 atau qwen2.5:7b sesuai kekuatan PC kasir
+            model: "qwen2.5:3b",
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user", content: `Input Kasir: "${inputText}"` }
+              { role: "user", content: `Input Kasir: "${sanitizedInput}"` },
             ],
             stream: false,
-            options: {
-              temperature: 0.1 // Menjaga determinisme respons format JSON
-            }
-          })
+            options: { temperature: 0.1 },
+          }),
         });
 
         if (!response.ok) {
-          throw new Error("Gagal menghubungi server Ollama lokal. Pastikan Ollama sudah dijalankan.");
+          throw new Error(
+            "Gagal menghubungi server Ollama lokal. Pastikan Ollama sudah dijalankan.",
+          );
         }
 
         const resData = await response.json();
-        const aiResponseText = resData.message.content;
-        
-        // Membersihkan markdown tag jika ada (karena model kecil kadang lalai tidak memberikan raw JSON)
-        let cleanText = aiResponseText.trim();
-        if (cleanText.startsWith("```")) {
-          cleanText = cleanText.replace(/^```json/, "").replace(/```$/, "").trim();
+        if (!resData.message?.content) {
+          throw new Error(
+            "Respons Ollama tidak valid. Pastikan model qwen2.5:3b sudah diunduh.",
+          );
+        }
+        let cleanText = resData.message.content.trim();
+        const ocrMatch = cleanText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (ocrMatch) {
+          cleanText = ocrMatch[1].trim();
         }
         parsedActions = JSON.parse(cleanText);
       }
@@ -158,79 +157,93 @@ Contoh output:
         throw new Error("Format respon AI tidak valid (bukan array).");
       }
 
-      setAiActions(parsedActions);
+      const validActions = [
+        "ADD_TO_CART",
+        "UPDATE_QUANTITY",
+        "REMOVE_FROM_CART",
+        "CLEAR_CART",
+      ];
+      const filteredActions = parsedActions.filter((item) => {
+        if (!item || !validActions.includes(item.action)) return false;
+        if (item.action !== "CLEAR_CART" && !item.search_query) return false;
+        return true;
+      });
 
-      // ==========================================
-      // EKSEKUSI AKSI PADA POS STATE
-      // ==========================================
+      setAiActions(filteredActions);
+
+      const actionsToSearch = filteredActions.filter(
+        (item) => item.action !== "CLEAR_CART",
+      );
+      const searchResults = await Promise.all(
+        actionsToSearch.map((item) =>
+          findBestMatchingProduct(item.search_query),
+        ),
+      );
+
       const executionSummary = [];
+      let searchIdx = 0;
 
-      for (const item of parsedActions) {
-        const { action, search_query, quantity, notes } = item;
+      for (const item of filteredActions) {
+        const { action, notes } = item;
+        const quantity =
+          item.quantity != null ? Math.max(1, Number(item.quantity) || 1) : 1;
 
         if (action === "CLEAR_CART") {
-          if (onClearCart) {
-            onClearCart();
-            executionSummary.push({ status: "success", message: "Keranjang berhasil dikosongkan." });
+          if (callbacksRef.current.onClearCart) {
+            callbacksRef.current.onClearCart();
+            executionSummary.push({
+              status: "success",
+              message: "Keranjang berhasil dikosongkan.",
+            });
           }
           continue;
         }
 
-        // Cari produk di Supabase terlebih dahulu untuk ADD_TO_CART, UPDATE, dll.
-        const matchedProducts = await findBestMatchingProduct(search_query);
+        const matchedProducts = searchResults[searchIdx] || [];
+        searchIdx++;
 
         if (matchedProducts.length === 0) {
           executionSummary.push({
             status: "not_found",
-            message: `Produk dengan pencarian "${search_query}" tidak ditemukan di database.`
+            message: `Produk dengan pencarian "${item.search_query}" tidak ditemukan di database.`,
           });
           continue;
         }
 
-        // Jika ada 1 kecocokan pasti (tidak ambigu)
         if (matchedProducts.length === 1) {
           const product = matchedProducts[0];
 
-          if (action === "ADD_TO_CART") {
-            if (onAddProductToCart) {
-              onAddProductToCart(product, quantity);
-              executionSummary.push({
-                status: "success",
-                message: `Berhasil menambahkan ${quantity} x ${product.nama} ke keranjang.`
-              });
-            }
-          } else if (action === "UPDATE_QUANTITY") {
-            if (onUpdateCartQuantity) {
-              onUpdateCartQuantity(product.id, quantity);
-              executionSummary.push({
-                status: "success",
-                message: `Berhasil mengubah kuantitas ${product.nama} menjadi ${quantity}.`
-              });
-            }
-          } else if (action === "REMOVE_FROM_CART") {
-            if (onRemoveFromCart) {
-              onRemoveFromCart(product.id);
-              executionSummary.push({
-                status: "success",
-                message: `Berhasil menghapus ${product.nama} dari keranjang.`
-              });
-            }
+          if (action === "ADD_TO_CART" && callbacksRef.current.onAddProductToCart) {
+            callbacksRef.current.onAddProductToCart(product, quantity);
+            executionSummary.push({
+              status: "success",
+              message: `Berhasil menambahkan ${quantity} x ${product.nama} ke keranjang.`,
+            });
+          } else if (action === "UPDATE_QUANTITY" && callbacksRef.current.onUpdateCartQuantity) {
+            callbacksRef.current.onUpdateCartQuantity(product.id, quantity);
+            executionSummary.push({
+              status: "success",
+              message: `Berhasil mengubah kuantitas ${product.nama} menjadi ${quantity}.`,
+            });
+          } else if (action === "REMOVE_FROM_CART" && callbacksRef.current.onRemoveFromCart) {
+            callbacksRef.current.onRemoveFromCart(product.id);
+            executionSummary.push({
+              status: "success",
+              message: `Berhasil menghapus ${product.nama} dari keranjang.`,
+            });
           }
-        } 
-        // Jika kecocokan ambigu (ada beberapa produk bermiripan)
-        else {
+        } else {
           executionSummary.push({
             status: "ambiguous",
-            query: search_query,
-            quantity: quantity,
+            query: item.search_query,
+            quantity,
             options: matchedProducts,
-            message: `Ditemukan beberapa produk yang cocok untuk "${search_query}". Silakan pilih salah satu.`
+            message: `Ditemukan beberapa produk yang cocok untuk "${item.search_query}". Silakan pilih salah satu.`,
           });
         }
       }
 
       return executionSummary;
-
     } catch (err) {
       console.error("AI POS Agent error:", err);
       setError(err.message || "Terjadi kesalahan saat memproses perintah AI.");
@@ -238,7 +251,7 @@ Contoh output:
     } finally {
       setIsProcessing(false);
     }
-  }, [aiProvider, geminiApiKey, ollamaUrl, onAddProductToCart, onUpdateCartQuantity, onRemoveFromCart, onClearCart]);
+  }, [aiProvider, ollamaUrl]);
 
   return {
     processCommand,

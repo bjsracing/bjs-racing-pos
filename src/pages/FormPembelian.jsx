@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import { FiSave, FiPlus, FiTrash2, FiSearch, FiFilter } from "react-icons/fi";
+import { FiSave, FiPlus, FiTrash2, FiSearch, FiFilter, FiCamera } from "react-icons/fi";
 import PurchaseFilterModal from "../components/PurchaseFilterModal.jsx";
 import PurchaseOrderShareModal from "../components/PurchaseOrderShareModal.jsx";
 import ProductModal from "../components/ProductModal.jsx";
+import NotaOcrModal from "../components/NotaOcrModal.jsx";
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -51,6 +52,7 @@ const FormPembelian = () => {
   const [productSaveError, setProductSaveError] = useState("");
   const [allProducts, setAllProducts] = useState([]);
   const [suggestedItems, setSuggestedItems] = useState([]);
+  const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
 
   // --- EFEK ---
   useEffect(() => {
@@ -225,7 +227,7 @@ const FormPembelian = () => {
       prev.filter((item) => item.product_id !== product_id),
     );
   const handleQuantityChange = (product_id, quantity) => {
-    const newQuantity = Math.max(1, parseInt(quantity) || 1);
+    const newQuantity = Math.max(1, parseFloat(quantity) || 1);
     setOrderItems((prev) =>
       prev.map((item) =>
         item.product_id === product_id
@@ -265,6 +267,12 @@ const FormPembelian = () => {
   const handleSaveOrder = async () => {
     if (orderItems.length === 0)
       return alert("Silakan tambahkan minimal satu produk.");
+    const invalidItems = orderItems.filter((item) => !item.product_id);
+    if (invalidItems.length > 0) {
+      return alert(
+        `${invalidItems.length} item tidak memiliki produk terkait. Hapus atau ganti item tersebut sebelum menyimpan.`,
+      );
+    }
     setIsSaving(true);
     try {
       const itemsToInsertPayload = (purchaseOrderId) =>
@@ -346,6 +354,94 @@ const FormPembelian = () => {
     }
   };
 
+  const handleOcrConfirm = (ocrItems) => {
+    const updatedItems = [...orderItems];
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    ocrItems.forEach((ocrItem) => {
+      if (!ocrItem.product_id) return;
+
+      const matchIndex = updatedItems.findIndex((poItem) => {
+        if (!poItem.nama || !ocrItem.product_nama) return false;
+        if (poItem.product_id && ocrItem.product_id) {
+          return poItem.product_id === ocrItem.product_id;
+        }
+        const poName = poItem.nama.toLowerCase().trim();
+        const ocrName = ocrItem.product_nama.toLowerCase().trim();
+        if (poName === ocrName) return true;
+        if (poName.includes(ocrName) && ocrName.length >= poName.length * 0.5)
+          return true;
+        if (ocrName.includes(poName) && poName.length >= ocrName.length * 0.5)
+          return true;
+        return false;
+      });
+
+      if (matchIndex >= 0) {
+        const existingCatatan = updatedItems[matchIndex].catatan_item || "";
+        const notaPrice = ocrItem.harga_beli
+          ? `Harga nota: Rp${ocrItem.harga_beli.toLocaleString("id-ID")}`
+          : "";
+        const pricePrefix = "Harga nota: ";
+        let newCatatan = existingCatatan;
+        if (notaPrice) {
+          if (existingCatatan.includes(pricePrefix)) {
+            newCatatan = existingCatatan.replace(
+              new RegExp(`${pricePrefix}Rp[\\d.,]+`),
+              notaPrice,
+            );
+          } else {
+            newCatatan = existingCatatan
+              ? `${existingCatatan} | ${notaPrice}`
+              : notaPrice;
+          }
+        }
+        updatedItems[matchIndex] = {
+          ...updatedItems[matchIndex],
+          quantity_ordered: ocrItem.kuantitas,
+          catatan_item: newCatatan,
+        };
+        updatedCount++;
+      } else {
+        const foundProduct = allProducts.find(
+          (p) => p.id === ocrItem.product_id,
+        );
+        if (!foundProduct) return;
+
+        updatedItems.push({
+          product_id: foundProduct.id,
+          kode: foundProduct.kode,
+          nama: foundProduct.nama,
+          merek: foundProduct.merek || "",
+          kategori: foundProduct.kategori || "",
+          stok: foundProduct.stok || 0,
+          catatan_item: ocrItem.harga_beli
+            ? `Harga nota: Rp${ocrItem.harga_beli.toLocaleString("id-ID")}`
+            : "",
+          quantity_ordered: ocrItem.kuantitas,
+          satuan_dasar: foundProduct.satuan_dasar || "Pcs",
+          satuan_pembelian: foundProduct.satuan_pembelian,
+          nilai_konversi: foundProduct.nilai_konversi,
+          unit_ordered: foundProduct.satuan_dasar || "Pcs",
+          conversion_to_base: 1,
+        });
+        addedCount++;
+      }
+    });
+
+    setOrderItems(updatedItems);
+    setIsOcrModalOpen(false);
+
+    const messages = [];
+    if (updatedCount > 0) messages.push(`${updatedCount} item diupdate`);
+    if (addedCount > 0) messages.push(`${addedCount} item baru ditambahkan`);
+    if (messages.length === 0) {
+      alert("Tidak ada item baru yang ditambahkan dari nota.");
+    } else {
+      alert(`Berhasil! ${messages.join(", ")}.`);
+    }
+  };
+
   const handleOpenAddModal = () => {
     setProductToEdit(null);
     setProductSaveError("");
@@ -390,6 +486,13 @@ const FormPembelian = () => {
         isOpen={isShareModalOpen}
         onClose={handleCloseShareModal}
         orderData={newOrderData}
+      />
+      <NotaOcrModal
+        isOpen={isOcrModalOpen}
+        onClose={() => setIsOcrModalOpen(false)}
+        onConfirm={handleOcrConfirm}
+        allProducts={allProducts}
+        existingItems={orderItems}
       />
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">
@@ -455,12 +558,26 @@ const FormPembelian = () => {
           <h3 className="text-lg font-semibold text-slate-800">
             Cari & Tambah Produk
           </h3>
-          <button
-            onClick={handleOpenAddModal}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg text-sm"
-          >
-            Tambah Produk
-          </button>
+          <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (!selectedSupplier) {
+                    alert("Pilih supplier terlebih dahulu sebelum import nota.");
+                    return;
+                  }
+                  setIsOcrModalOpen(true);
+                }}
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-2 px-4 rounded-lg text-sm flex items-center gap-2 shadow-md transition-all hover:scale-105 duration-200"
+              >
+                <FiCamera size={16} /> Import Nota
+              </button>
+            <button
+              onClick={handleOpenAddModal}
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg text-sm"
+            >
+              Tambah Produk
+            </button>
+          </div>
         </div>
         <div className="flex flex-col md:flex-row gap-4 mb-2">
           <div className="relative flex-grow">

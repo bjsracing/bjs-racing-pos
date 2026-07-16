@@ -404,25 +404,35 @@ function Pos() {
       ];
     });
   };
-  const handleAddProductFromAI = (product, qty) => {
+  const handleAddProductFromAI = useCallback((product, qty) => {
     const finalQty = qty || 1;
-    const existing = cart.find((i) => i.id === product.id);
-    const currentQty = existing ? existing.quantity : 0;
-
-    if (currentQty + finalQty > product.stok) {
-      alert(`Stok tidak cukup! Tersedia: ${product.stok}, diminta: ${currentQty + finalQty}`);
-      return;
-    }
-
-    if (existing) {
-      handleCartChange(product.id, "quantity", currentQty + finalQty);
-    } else {
-      setCart((curr) => [
+    setCart((curr) => {
+      const existing = curr.find((i) => i.id === product.id);
+      const currentQty = existing ? existing.quantity : 0;
+      if (currentQty + finalQty > product.stok) {
+        alert(
+          `Stok tidak cukup! Tersedia: ${product.stok}, diminta: ${currentQty + finalQty}`,
+        );
+        return curr;
+      }
+      if (existing) {
+        return curr.map((i) =>
+          i.id === product.id
+            ? { ...i, quantity: currentQty + finalQty }
+            : i,
+        );
+      }
+      return [
         ...curr,
-        { ...product, quantity: finalQty, discountType: "Tidak Ada", discountValue: "" },
-      ]);
-    }
-  };
+        {
+          ...product,
+          quantity: finalQty,
+          discountType: "Tidak Ada",
+          discountValue: "",
+        },
+      ];
+    });
+  }, []);
   const handleCartChange = (productId, field, value) => {
     setCart((curr) =>
       curr.map((item) => {
@@ -625,6 +635,13 @@ function Pos() {
     handleHoldTransaction,
   };
 
+  const handleClearCart = useCallback(() => setCart([]), []);
+  const handleUpdateCartQty = useCallback(
+    (id, qty) => handleCartChange(id, "quantity", qty),
+    [],
+  );
+  const handleCloseAiModal = useCallback(() => setIsAiModalOpen(false), []);
+
   return (
     <div className="md:flex md:flex-row md:gap-8 h-[calc(100vh-4rem)] p-4 relative bg-slate-50 overflow-hidden">
       <CustomerRequestModal
@@ -633,12 +650,12 @@ function Pos() {
       />
       <AIAssistantModal
         isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
+        onClose={handleCloseAiModal}
         cart={cart}
         onAddProductToCart={handleAddProductFromAI}
-        onUpdateCartQuantity={(id, qty) => handleCartChange(id, "quantity", qty)}
+        onUpdateCartQuantity={handleUpdateCartQty}
         onRemoveFromCart={handleRemoveFromCart}
-        onClearCart={() => setCart([])}
+        onClearCart={handleClearCart}
       />
       <HeldTransactionsModal
         isOpen={isResumeModalOpen}

@@ -1,56 +1,105 @@
-// /home/user/bjs-racing-pos-review/AIAssistantModal.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { FiX, FiMic, FiSend, FiLoader, FiCheckCircle, FiAlertCircle, FiPlus } from "react-icons/fi";
 import { useAIPosAgent } from "../hooks/useAIPosAgent.js";
 import { useVoiceSearch } from "../hooks/useVoiceSearch.js";
 
-/**
- * Komponen Modal Asisten Kasir AI (AI POS Assistant)
- * Menyediakan UI untuk kasir mengobrol atau menggunakan suara untuk memesan barang/mengekstrak aksi POS
- */
+const MAX_LOGS = 100;
+
 function AIAssistantModal({
   isOpen,
   onClose,
   cart,
-  onAddProductToCart,     // (product, qty) => void
-  onUpdateCartQuantity,   // (productId, qty) => void
-  onRemoveFromCart,       // (productId) => void
-  onClearCart,            // () => void
+  onAddProductToCart,
+  onUpdateCartQuantity,
+  onRemoveFromCart,
+  onClearCart,
 }) {
   const [inputText, setInputText] = useState("");
-  const [logs, setLogs] = useState([]); // Menyimpan histori percakapan / log aksi
-  const [ambiguousMatch, setAmbiguousMatch] = useState(null); // Menyimpan pilihan produk jika ambigu
+  const [logs, setLogs] = useState([]);
+  const [ambiguousMatches, setAmbiguousMatches] = useState([]);
+  const lastCommandRef = useRef("");
+  const isMountedRef = useRef(true);
+  const scrollRef = useRef(null);
 
-  // Ganti nilai API Key ini dengan API key Anda dari Google AI Studio
-  // Catatan: Disarankan dipindahkan ke serverless function / backend demi keamanan produksi
-  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "YOUR_FREE_GEMINI_API_KEY";
-
-  // Inisialisasi useAIPosAgent Hook
-  const { processCommand, isProcessing, error } = useAIPosAgent({
+  const { processCommand, isProcessing, error, setError } = useAIPosAgent({
     onAddProductToCart,
     onUpdateCartQuantity,
     onRemoveFromCart,
     onClearCart,
-    aiProvider: "gemini", // atau "ollama" untuk lokal
-    geminiApiKey: GEMINI_API_KEY,
+    aiProvider: "gemini",
   });
 
-  // Inisialisasi Voice Search Hook bawaan proyek
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs, ambiguousMatches]);
+
+  const handleSubmitCommand = useCallback(async (textToProcess) => {
+    if (isProcessing) return;
+    const text = textToProcess || inputText;
+    if (!text.trim()) return;
+
+    setAmbiguousMatches([]);
+    setLogs((prev) => [...prev.slice(-(MAX_LOGS - 1)), { sender: "user", text }]);
+    setInputText("");
+
+    const results = await processCommand(text);
+
+    if (!isMountedRef.current) return;
+
+    if (results) {
+      const newLogs = [];
+      const newAmbiguous = [];
+      results.forEach((res) => {
+        if (res.status === "success") {
+          newLogs.push({ sender: "ai", status: "success", text: res.message });
+        } else if (res.status === "not_found") {
+          newLogs.push({ sender: "ai", status: "error", text: res.message });
+        } else if (res.status === "ambiguous") {
+          newLogs.push({ sender: "ai", status: "warning", text: res.message });
+          newAmbiguous.push({
+            query: res.query,
+            quantity: res.quantity,
+            options: res.options,
+          });
+        }
+      });
+      if (isMountedRef.current) {
+        setLogs((prev) => [...prev.slice(-(MAX_LOGS - newLogs.length)), ...newLogs]);
+        setAmbiguousMatches((prev) => [...prev, ...newAmbiguous]);
+      }
+    } else if (isMountedRef.current) {
+      setLogs((prev) => [
+        ...prev.slice(-(MAX_LOGS - 1)),
+        { sender: "ai", status: "error", text: "Maaf, AI gagal menganalisis instruksi Anda." },
+      ]);
+    }
+  }, [inputText, isProcessing, processCommand]);
+
   const {
     isListening,
     isSupported,
     startListening,
     stopListening,
-    transcript
+    transcript,
   } = useVoiceSearch({
     lang: "id-ID",
     onResult: (finalTranscript) => {
       setInputText(finalTranscript);
-      handleSubmitCommand(finalTranscript);
-    }
+      if (finalTranscript !== lastCommandRef.current) {
+        lastCommandRef.current = finalTranscript;
+        handleSubmitCommand(finalTranscript);
+      }
+    },
   });
 
-  // Update input text saat suara ditranskrip secara real-time
   useEffect(() => {
     if (transcript) {
       setInputText(transcript);
@@ -59,57 +108,29 @@ function AIAssistantModal({
 
   if (!isOpen) return null;
 
-  const handleSubmitCommand = async (textToProcess) => {
-    const text = textToProcess || inputText;
-    if (!text.trim()) return;
-
-    setAmbiguousMatch(null);
-    setLogs((prev) => [...prev, { sender: "user", text }]);
-    setInputText("");
-
-    // Proses teks ucapan kasir menggunakan AI Agent
-    const results = await processCommand(text);
-
-    if (results) {
-      results.forEach((res) => {
-        if (res.status === "success") {
-          setLogs((prev) => [...prev, { sender: "ai", status: "success", text: res.message }]);
-        } else if (res.status === "not_found") {
-          setLogs((prev) => [...prev, { sender: "ai", status: "error", text: res.message }]);
-        } else if (res.status === "ambiguous") {
-          setLogs((prev) => [...prev, { sender: "ai", status: "warning", text: res.message }]);
-          // Jika ambigu, simpan data ke state untuk ditampilkan sebagai tombol opsi pilihan produk
-          setAmbiguousMatch({
-            query: res.query,
-            quantity: res.quantity,
-            options: res.options
-          });
-        }
-      });
-    } else {
-      setLogs((prev) => [
-        ...prev,
-        { sender: "ai", status: "error", text: "Maaf, AI gagal menganalisis instruksi Anda." }
-      ]);
-    }
-  };
-
-  // Handler jika kasir mengklik salah satu produk alternatif hasil pencarian ambigu
   const handleSelectAmbiguousProduct = (product, quantity) => {
     if (onAddProductToCart) {
       onAddProductToCart(product, quantity);
       setLogs((prev) => [
-        ...prev,
-        { sender: "ai", status: "success", text: `Berhasil menambahkan ${quantity} x ${product.nama} (Pilihan Manual) ke keranjang.` }
+        ...prev.slice(-(MAX_LOGS - 1)),
+        {
+          sender: "ai",
+          status: "success",
+          text: `Berhasil menambahkan ${quantity} x ${product.nama} (Pilihan Manual) ke keranjang.`,
+        },
       ]);
     }
-    setAmbiguousMatch(null);
+    setAmbiguousMatches((prev) => prev.slice(1));
+  };
+
+  const handleDismissError = () => {
+    if (setError) setError(null);
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col h-[550px] border border-slate-100 overflow-hidden">
-        
+
         {/* Header Modal */}
         <div className="p-4 bg-gradient-to-r from-orange-500 to-red-600 text-white flex justify-between items-center shadow-md">
           <div className="flex items-center space-x-2">
@@ -128,7 +149,7 @@ function AIAssistantModal({
         </div>
 
         {/* Layar Chat Log */}
-        <div className="flex-grow p-4 overflow-y-auto space-y-3 bg-slate-50">
+        <div ref={scrollRef} className="flex-grow p-4 overflow-y-auto space-y-3 bg-slate-50">
           <div className="text-center text-xs text-slate-400 py-1 bg-white rounded-md shadow-sm border border-slate-100">
             💡 Cobalah ucapkan: <span className="italic font-semibold text-slate-600">"Masukkan oli shell 2 botol sama pilok merah 1"</span>
           </div>
@@ -176,14 +197,14 @@ function AIAssistantModal({
           ))}
 
           {/* Menampilkan Pilihan Produk Jika Ambigu */}
-          {ambiguousMatch && (
+          {ambiguousMatches.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-2 shadow-inner">
               <p className="text-xs font-bold text-amber-900">Pilih produk yang paling sesuai:</p>
               <div className="grid grid-cols-1 gap-1.5">
-                {ambiguousMatch.options.map((prod) => (
+                {ambiguousMatches[0].options.map((prod) => (
                   <button
                     key={prod.id}
-                    onClick={() => handleSelectAmbiguousProduct(prod, ambiguousMatch.quantity)}
+                    onClick={() => handleSelectAmbiguousProduct(prod, ambiguousMatches[0].quantity)}
                     className="flex justify-between items-center text-left text-xs bg-white hover:bg-orange-100 p-2.5 rounded-lg border border-slate-200 hover:border-orange-300 transition-all font-medium text-slate-700"
                   >
                     <span>
@@ -196,6 +217,11 @@ function AIAssistantModal({
                   </button>
                 ))}
               </div>
+              {ambiguousMatches.length > 1 && (
+                <p className="text-xs text-amber-600">
+                  +{ambiguousMatches.length - 1} item ambigu lainnya menunggu...
+                </p>
+              )}
             </div>
           )}
 
@@ -211,7 +237,13 @@ function AIAssistantModal({
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-xs text-red-700">
               <FiAlertCircle size={18} className="flex-shrink-0" />
-              <span><strong>Error:</strong> {error}</span>
+              <span className="flex-1"><strong>Error:</strong> {error}</span>
+              <button
+                onClick={handleDismissError}
+                className="text-red-400 hover:text-red-600 font-bold px-1"
+              >
+                ✕
+              </button>
             </div>
           )}
         </div>
@@ -221,11 +253,12 @@ function AIAssistantModal({
           {isSupported ? (
             <button
               onClick={isListening ? stopListening : startListening}
+              disabled={isProcessing}
               className={`p-3 rounded-full transition-all duration-300 ${
                 isListening
                   ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
                   : "bg-slate-100 hover:bg-orange-100 text-slate-600 hover:text-orange-600"
-              }`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
               title={isListening ? "Hentikan perekaman suara" : "Gunakan perintah suara (Bahasa Indonesia)"}
             >
               <FiMic size={20} className={isListening ? "scale-110" : ""} />
@@ -238,7 +271,7 @@ function AIAssistantModal({
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmitCommand()}
+            onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleSubmitCommand()}
             placeholder={isListening ? "Mendengarkan suara Anda..." : "Ketik perintah di sini (cth: 'tambah oli shell 2')"}
             className="flex-grow p-3 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl text-sm transition-all focus:outline-none"
             disabled={isProcessing}

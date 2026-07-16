@@ -341,7 +341,7 @@ const PermintaanPelanggan = () => {
                   )}
                   <button
                     onClick={() => {
-                      setSelectedRequest(req);
+                      setSelectedRequest({ ...req });
                       setIsWhatsAppModalOpen(true);
                     }}
                     className="flex items-center gap-2 w-full sm:w-auto justify-center px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 text-sm"

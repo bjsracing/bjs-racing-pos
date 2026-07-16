@@ -1,29 +1,46 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FiX, FiLoader, FiCopy, FiMessageCircle, FiCheck } from "react-icons/fi";
 import { useWhatsAppDraft } from "../hooks/useWhatsAppDraft.js";
 
 function WhatsAppDraftModal({ isOpen, onClose, request }) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef(null);
   const { draftMessage, draftedMessage, setDraftedMessage, isDrafting, error, searchAlternatives } =
     useWhatsAppDraft();
 
   useEffect(() => {
-    if (isOpen && request) {
-      setPhoneNumber(request.nomor_whatsapp || "");
-      setDraftedMessage("");
-      setCopied(false);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
-      const generateDraft = async () => {
-        const alternatives = await searchAlternatives(
-          request.kategori,
-          request.nama_produk_diminta,
-        );
-        await draftMessage(request, alternatives);
-      };
-      generateDraft();
-    }
-  }, [isOpen, request]);
+  useEffect(() => {
+    if (!isOpen || !request) return;
+
+    let cancelled = false;
+    setPhoneNumber(request.nomor_whatsapp || "");
+    setDraftedMessage("");
+    setCopied(false);
+
+    const controller = new AbortController();
+
+    const generateDraft = async () => {
+      const alternatives = await searchAlternatives(
+        request.kategori,
+        request.nama_produk_diminta,
+      );
+      if (cancelled) return;
+      await draftMessage(request, alternatives, controller.signal);
+    };
+    generateDraft();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [isOpen, request, searchAlternatives, draftMessage, setDraftedMessage]);
 
   if (!isOpen || !request) return null;
 
@@ -31,16 +48,26 @@ function WhatsAppDraftModal({ isOpen, onClose, request }) {
     try {
       await navigator.clipboard.writeText(draftedMessage);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
-      const textarea = document.createElement("textarea");
-      textarea.value = draftedMessage;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = draftedMessage;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const success = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (success) {
+          setCopied(true);
+          timeoutRef.current = setTimeout(() => setCopied(false), 2000);
+        } else {
+          alert("Gagal menyalin pesan. Silakan salin manual.");
+        }
+      } catch {
+        alert("Gagal menyalin pesan. Silakan salin manual.");
+      }
     }
   };
 
@@ -50,6 +77,10 @@ function WhatsAppDraftModal({ isOpen, onClose, request }) {
       return;
     }
     let cleanPhone = phoneNumber.replace(/[^0-9]/g, "");
+    if (cleanPhone.length < 8 || cleanPhone.length > 15) {
+      alert("Nomor telepon tidak valid. Masukkan 8-15 digit angka.");
+      return;
+    }
     if (cleanPhone.startsWith("0")) {
       cleanPhone = "62" + cleanPhone.substring(1);
     } else if (!cleanPhone.startsWith("62")) {
@@ -60,7 +91,10 @@ function WhatsAppDraftModal({ isOpen, onClose, request }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
         <div className="p-4 border-b flex justify-between items-center bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
           <div className="flex items-center gap-2">
@@ -150,4 +184,4 @@ function WhatsAppDraftModal({ isOpen, onClose, request }) {
   );
 }
 
-export default WhatsAppDraftModal;
+export default React.memo(WhatsAppDraftModal);

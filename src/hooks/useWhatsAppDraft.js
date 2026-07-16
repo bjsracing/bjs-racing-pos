@@ -1,24 +1,24 @@
 import { useState, useCallback } from "react";
 import { supabase } from "../supabaseClient.js";
+import { callGeminiProxy } from "../lib/geminiProxy.js";
 
 export function useWhatsAppDraft() {
   const [isDrafting, setIsDrafting] = useState(false);
   const [draftedMessage, setDraftedMessage] = useState("");
   const [error, setError] = useState(null);
 
-  const searchAlternatives = async (kategori, excludeProductName) => {
+  const searchAlternatives = useCallback(async (kategori, excludeProductName) => {
     if (!kategori) return [];
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from("products")
         .select("nama, merek, harga_jual, stok")
-        .ilike("kategori", `%${kategori}%`)
+        .eq("kategori", kategori)
         .eq("status", "Aktif")
         .gt("stok", 0)
         .order("harga_jual", { ascending: true })
         .limit(5);
 
-      const { data, error } = await query;
       if (error) throw error;
 
       return (data || []).filter(
@@ -28,19 +28,12 @@ export function useWhatsAppDraft() {
       console.error("Gagal mencari alternatif:", err);
       return [];
     }
-  };
+  }, []);
 
-  const draftMessage = useCallback(async (request, alternatives) => {
+  const draftMessage = useCallback(async (request, alternatives, signal) => {
     setIsDrafting(true);
     setError(null);
     setDraftedMessage("");
-
-    const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!geminiApiKey) {
-      setError("API Key Gemini belum dikonfigurasi.");
-      setIsDrafting(false);
-      return "";
-    }
 
     const alternativesText =
       alternatives.length > 0
@@ -81,37 +74,31 @@ Toko: BJS Racing
 Nomor WA: ${import.meta.env.VITE_SHOP_WHATSAPP || "0881011669213"}`;
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                { text: systemPrompt },
-                { text: userMessage },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 500,
+      const resData = await callGeminiProxy({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: userMessage }],
           },
-        }),
-      });
+        ],
+        systemInstruction: {
+          parts: [{ text: systemPrompt }],
+        },
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 500,
+        },
+      }, signal);
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error?.message || "Gagal menghubungi Gemini API");
+      const candidate = resData.candidates?.[0];
+      const message = candidate?.content?.parts?.[0]?.text?.trim();
+      if (!message) {
+        throw new Error("AI tidak menghasilkan pesan. Coba lagi.");
       }
-
-      const resData = await response.json();
-      const message = resData.candidates[0].content.parts[0].text.trim();
       setDraftedMessage(message);
       return message;
     } catch (err) {
+      if (err.name === "AbortError") return "";
       console.error("WhatsApp draft error:", err);
       setError(err.message || "Gagal membuat draf pesan.");
       return "";
