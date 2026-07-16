@@ -1,11 +1,10 @@
 {
   "name": "BJS POS",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
-  },
   "postCreateCommand": "npm install",
-  "forwardPorts": [3000],
+  "forwardPorts": [
+    3000
+  ],
   "portsAttributes": {
     "3000": {
       "label": "Dev Server",
