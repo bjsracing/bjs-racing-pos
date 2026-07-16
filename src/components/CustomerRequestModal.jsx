@@ -7,6 +7,7 @@ function CustomerRequestModal({ isOpen, onClose }) {
   const [productName, setProductName] = useState("");
   const [notes, setNotes] = useState("");
   const [kategori, setKategori] = useState("");
+  const [nomorWhatsapp, setNomorWhatsapp] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -24,6 +25,7 @@ function CustomerRequestModal({ isOpen, onClose }) {
         nama_produk_diminta: productName,
         catatan: notes,
         kategori: kategori,
+        nomor_whatsapp: nomorWhatsapp || null,
       });
 
       if (error) throw error;
@@ -32,6 +34,7 @@ function CustomerRequestModal({ isOpen, onClose }) {
       setProductName("");
       setNotes("");
       setKategori("");
+      setNomorWhatsapp("");
       onClose();
     } catch (error) {
       console.error("Gagal mencatat permintaan:", error);
@@ -104,6 +107,25 @@ function CustomerRequestModal({ isOpen, onClose }) {
                 placeholder="Cth: Onderdil, Oli, Pilok"
                 className="w-full p-2 border rounded-lg"
               />
+            </div>
+            <div>
+              <label
+                htmlFor="nomorWhatsapp"
+                className="block text-sm font-medium text-slate-700 mb-1"
+              >
+                Nomor WhatsApp Pelanggan (Opsional)
+              </label>
+              <input
+                id="nomorWhatsapp"
+                type="tel"
+                value={nomorWhatsapp}
+                onChange={(e) => setNomorWhatsapp(e.target.value)}
+                placeholder="Contoh: 08123456789"
+                className="w-full p-2 border rounded-lg"
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Untuk mengirim info produk/alternatif via WhatsApp
+              </p>
             </div>
           </div>
           <div className="p-4 bg-slate-50 border-t rounded-b-lg flex justify-end">

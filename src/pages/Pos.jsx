@@ -15,10 +15,12 @@ import {
   FiChevronUp,
   FiChevronDown,
   FiEdit,
+  FiMic,
 } from "react-icons/fi";
 import HeldTransactionsModal from "../components/HeldTransactionsModal.jsx";
 import ReceiptModal from "../components/ReceiptModal.jsx";
 import CustomerRequestModal from "../components/CustomerRequestModal.jsx";
+import AIAssistantModal from "../components/AIAssistantModal.jsx";
 
 // Helper Hook untuk debounce
 function useDebounce(value, delay) {
@@ -274,6 +276,7 @@ function Pos() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   const [activeQuickFilter, setActiveQuickFilter] = useState("semua");
 
@@ -400,6 +403,25 @@ function Pos() {
         },
       ];
     });
+  };
+  const handleAddProductFromAI = (product, qty) => {
+    const finalQty = qty || 1;
+    const existing = cart.find((i) => i.id === product.id);
+    const currentQty = existing ? existing.quantity : 0;
+
+    if (currentQty + finalQty > product.stok) {
+      alert(`Stok tidak cukup! Tersedia: ${product.stok}, diminta: ${currentQty + finalQty}`);
+      return;
+    }
+
+    if (existing) {
+      handleCartChange(product.id, "quantity", currentQty + finalQty);
+    } else {
+      setCart((curr) => [
+        ...curr,
+        { ...product, quantity: finalQty, discountType: "Tidak Ada", discountValue: "" },
+      ]);
+    }
   };
   const handleCartChange = (productId, field, value) => {
     setCart((curr) =>
@@ -609,6 +631,15 @@ function Pos() {
         isOpen={isRequestModalOpen}
         onClose={() => setIsRequestModalOpen(false)}
       />
+      <AIAssistantModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        cart={cart}
+        onAddProductToCart={handleAddProductFromAI}
+        onUpdateCartQuantity={(id, qty) => handleCartChange(id, "quantity", qty)}
+        onRemoveFromCart={handleRemoveFromCart}
+        onClearCart={() => setCart([])}
+      />
       <HeldTransactionsModal
         isOpen={isResumeModalOpen}
         onClose={() => setIsResumeModalOpen(false)}
@@ -640,6 +671,13 @@ function Pos() {
             >
               <FiEdit />
               <span>Catat Permintaan</span>
+            </button>
+            <button
+              onClick={() => setIsAiModalOpen(true)}
+              className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 text-sm shadow-md transition-all hover:scale-105 duration-200"
+            >
+              <FiMic />
+              <span>AI Copilot</span>
             </button>
             <button
               onClick={() => setIsResumeModalOpen(true)}

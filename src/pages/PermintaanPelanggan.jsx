@@ -8,8 +8,10 @@ import {
   FiTrash2,
   FiArrowRight,
   FiFilter,
+  FiMessageCircle,
 } from "react-icons/fi";
 import ProductModal from "../components/ProductModal.jsx";
+import WhatsAppDraftModal from "../components/WhatsAppDraftModal.jsx";
 
 const PermintaanPelanggan = () => {
   const [requests, setRequests] = useState([]);
@@ -26,6 +28,10 @@ const PermintaanPelanggan = () => {
   const [modalData, setModalData] = useState(null);
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [productSaveError, setProductSaveError] = useState("");
+
+  // State untuk WhatsApp Draft Modal
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -191,6 +197,14 @@ const PermintaanPelanggan = () => {
         saveError={productSaveError}
         setSaveError={setProductSaveError}
       />
+      <WhatsAppDraftModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => {
+          setIsWhatsAppModalOpen(false);
+          setSelectedRequest(null);
+        }}
+        request={selectedRequest}
+      />
 
       <div className="mb-6 flex justify-between items-start">
         <div>
@@ -325,6 +339,16 @@ const PermintaanPelanggan = () => {
                       <span>Edit Produk</span>
                     </button>
                   )}
+                  <button
+                    onClick={() => {
+                      setSelectedRequest(req);
+                      setIsWhatsAppModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 w-full sm:w-auto justify-center px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 text-sm"
+                  >
+                    <FiMessageCircle size={16} />
+                    <span>Hubungi via WA</span>
+                  </button>
                   <button
                     onClick={() =>
                       handleDeleteRequest(req.id, req.nama_produk_diminta)
