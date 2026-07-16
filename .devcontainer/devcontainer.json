@@ -1,7 +1,7 @@
 {
   "name": "BJS POS",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
-  "postCreateCommand": "npm install",
+  "postCreateCommand": "npm install -g opencode-ai supabase vercel uipro-cli && npm install",
   "forwardPorts": [
     3000
   ],
