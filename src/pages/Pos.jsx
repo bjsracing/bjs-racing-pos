@@ -889,9 +889,9 @@ function Pos() {
           <div className="mb-1 p-1 bg-slate-100 rounded-lg">
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               <button
-                onClick={() => handleQuickFilterClick("DITON")}
-                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
-                  activeQuickFilter === "DITON"
+                onClick={() => handleQuickFilterClick("Diton")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border uppercase ${
+                  activeQuickFilter === "Diton"
                     ? "bg-[#FBAC18] text-black shadow-md"
                     : "bg-white text-slate-700 hover:bg-[#FBAC18] hover:text-black"
                 }`}
@@ -900,9 +900,9 @@ function Pos() {
               </button>
 
               <button
-                onClick={() => handleQuickFilterClick("NIPPON PAINT")}
-                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
-                  activeQuickFilter === "NIPPON PAINT"
+                onClick={() => handleQuickFilterClick("Nippon Paint")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border uppercase ${
+                  activeQuickFilter === "Nippon Paint"
                     ? "bg-black text-white shadow-md"
                     : "bg-white text-slate-700 hover:bg-black hover:text-white"
                 }`}
@@ -911,9 +911,9 @@ function Pos() {
               </button>
 
               <button
-                onClick={() => handleQuickFilterClick("SAMURAI")}
-                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
-                  activeQuickFilter === "SAMURAI"
+                onClick={() => handleQuickFilterClick("Samurai")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border uppercase ${
+                  activeQuickFilter === "Samurai"
                     ? "bg-slate-600 text-white shadow-md"
                     : "bg-white text-slate-700 hover:bg-slate-600 hover:text-white"
                 }`}
@@ -922,9 +922,9 @@ function Pos() {
               </button>
 
               <button
-                onClick={() => handleQuickFilterClick("SAPPORO")}
-                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
-                  activeQuickFilter === "SAPPORO"
+                onClick={() => handleQuickFilterClick("Sapporo")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border uppercase ${
+                  activeQuickFilter === "Sapporo"
                     ? "bg-blue-600 text-white shadow-md"
                     : "bg-white text-slate-700 hover:bg-blue-600 hover:text-white"
                 }`}
@@ -934,7 +934,7 @@ function Pos() {
 
               <button
                 onClick={() => handleQuickFilterClick("RJ")}
-                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border uppercase ${
                   activeQuickFilter === "RJ"
                     ? "bg-red-600 text-white shadow-md"
                     : "bg-white text-slate-700 hover:bg-red-600 hover:text-white"
