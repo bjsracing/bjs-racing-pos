@@ -301,6 +301,7 @@ function Pos() {
   const [activeFilters, setActiveFilters] = useState({
     merek: "semua",
     kategori: "semua",
+    ukuran: "semua",
   });
   const [merekOptions, setMerekOptions] = useState([]);
   const [kategoriOptions, setKategoriOptions] = useState([]);
@@ -321,6 +322,8 @@ function Pos() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   const [activeQuickFilter, setActiveQuickFilter] = useState("semua");
+  const [activeUkuranFilter, setActiveUkuranFilter] = useState("semua");
+  const [ukuranOptions, setUkuranOptions] = useState([]);
 
   const forceRefresh = () => setRefreshTrigger((t) => t + 1);
 
@@ -346,6 +349,7 @@ function Pos() {
       search_term: debouncedProductSearch,
       merek_filter: activeFilters.merek,
       kategori_filter: activeFilters.kategori,
+      ukuran_filter: activeFilters.ukuran,
       status_filter: "Aktif",
       low_stock_only: false,
     });
@@ -387,6 +391,26 @@ function Pos() {
     };
     fetchFilterOptions();
   }, []);
+
+  useEffect(() => {
+    if (activeQuickFilter === "semua") {
+      setUkuranOptions([]);
+      return;
+    }
+    const fetchUkuran = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("ukuran")
+        .eq("merek", activeQuickFilter)
+        .eq("kategori", "Pilok")
+        .eq("status", "Aktif");
+      if (Array.isArray(data)) {
+        const sizes = [...new Set(data.map((p) => p.ukuran).filter(Boolean))].sort();
+        setUkuranOptions(sizes);
+      }
+    };
+    fetchUkuran();
+  }, [activeQuickFilter]);
 
   useEffect(() => {
     const fetchHeldTransactions = async () => {
@@ -545,7 +569,9 @@ function Pos() {
     setCashPaid("");
     setSelectedCustomer({ id: null, nama_pelanggan: "Pelanggan Umum" });
     setIsSubmitting(false);
-    setActiveFilters({ merek: "semua", kategori: "semua" });
+    setActiveFilters({ merek: "semua", kategori: "semua", ukuran: "semua" });
+    setActiveQuickFilter("semua");
+    setActiveUkuranFilter("semua");
     forceRefresh();
   };
   const processCheckout = async (isPaid) => {
@@ -651,15 +677,20 @@ function Pos() {
   };
 
   const handleQuickFilterClick = (brand) => {
-    // Jika tombol yang sama diklik lagi, reset filter
     if (brand === activeQuickFilter) {
-      setActiveFilters({ merek: "semua", kategori: "semua" });
+      setActiveFilters({ merek: "semua", kategori: "semua", ukuran: "semua" });
       setActiveQuickFilter("semua");
+      setActiveUkuranFilter("semua");
     } else {
-      // Terapkan filter kategori 'Pilok' dan merek sesuai tombol
-      setActiveFilters({ merek: brand, kategori: "Pilok" });
+      setActiveFilters({ merek: brand, kategori: "Pilok", ukuran: "semua" });
       setActiveQuickFilter(brand);
+      setActiveUkuranFilter("semua");
     }
+  };
+
+  const handleUkuranFilterClick = (size) => {
+    setActiveUkuranFilter(size);
+    setActiveFilters((prev) => ({ ...prev, ukuran: size }));
   };
 
   const cartProps = {
@@ -854,10 +885,9 @@ function Pos() {
             </select>
           </div>
 
-          {/* BLOK BARU TANPA .MAP() */}
+          {/* Preset Merek Pilok */}
           <div className="mb-1 p-1 bg-slate-100 rounded-lg">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {/* Tombol DITON */}
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               <button
                 onClick={() => handleQuickFilterClick("DITON")}
                 className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
@@ -869,7 +899,6 @@ function Pos() {
                 DITON
               </button>
 
-              {/* Tombol NIPPON PAINT */}
               <button
                 onClick={() => handleQuickFilterClick("NIPPON PAINT")}
                 className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
@@ -881,7 +910,6 @@ function Pos() {
                 NIPPON PAINT
               </button>
 
-              {/* Tombol SAMURAI (Silver direpresentasikan dengan abu-abu) */}
               <button
                 onClick={() => handleQuickFilterClick("SAMURAI")}
                 className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
@@ -893,18 +921,56 @@ function Pos() {
                 SAMURAI
               </button>
 
-              {/* Tombol SAPPORO */}
               <button
                 onClick={() => handleQuickFilterClick("SAPPORO")}
                 className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
-                  activeQuickFilter === "Sapporo"
+                  activeQuickFilter === "SAPPORO"
                     ? "bg-blue-600 text-white shadow-md"
                     : "bg-white text-slate-700 hover:bg-blue-600 hover:text-white"
                 }`}
               >
                 SAPPORO
               </button>
+
+              <button
+                onClick={() => handleQuickFilterClick("RJ")}
+                className={`w-full py-2 px-3 text-sm font-bold rounded-md transition-colors border ${
+                  activeQuickFilter === "RJ"
+                    ? "bg-red-600 text-white shadow-md"
+                    : "bg-white text-slate-700 hover:bg-red-600 hover:text-white"
+                }`}
+              >
+                RJ
+              </button>
             </div>
+
+            {activeQuickFilter !== "semua" && ukuranOptions.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button
+                  onClick={() => handleUkuranFilterClick("semua")}
+                  className={`px-3 py-1 text-xs font-bold rounded-full border transition-colors ${
+                    activeUkuranFilter === "semua"
+                      ? "bg-orange-500 text-white border-orange-500"
+                      : "bg-white text-slate-600 border-slate-300 hover:border-orange-400"
+                  }`}
+                >
+                  Semua Ukuran
+                </button>
+                {ukuranOptions.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => handleUkuranFilterClick(size)}
+                    className={`px-3 py-1 text-xs font-bold rounded-full border transition-colors ${
+                      activeUkuranFilter === size
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-white text-slate-600 border-slate-300 hover:border-orange-400"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="relative mb-2">
