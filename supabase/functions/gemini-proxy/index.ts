@@ -1,17 +1,82 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const NVIDIA_API_KEY = Deno.env.get("NVIDIA_API_KEY");
+
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const NVIDIA_TEXT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b";
+const NVIDIA_VISION_MODEL = "nvidia/nemotron-nano-12b-v2-vl";
+
+function hasImageParts(contents) {
+  return contents.some((c) => c.parts?.some((p) => p.inlineData));
+}
+
+function geminiToOpenAIPayload(contents, generationConfig) {
+  const messages = [];
+  let hasImages = false;
+
+  for (const content of contents) {
+    const role = content.role === "model" ? "assistant" : "user";
+
+    if (content.parts?.length === 1 && content.parts[0].text) {
+      messages.push({ role, content: content.parts[0].text });
+    } else {
+      const contentParts = [];
+      for (const part of content.parts || []) {
+        if (part.text) {
+          contentParts.push({ type: "text", text: part.text });
+        } else if (part.inlineData) {
+          hasImages = true;
+          contentParts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+            },
+          });
+        }
+      }
+      if (contentParts.length === 1 && contentParts[0].type === "text") {
+        messages.push({ role, content: contentParts[0].text });
+      } else {
+        messages.push({ role, content: contentParts });
+      }
+    }
+  }
+
+  const model = hasImages ? NVIDIA_VISION_MODEL : NVIDIA_TEXT_MODEL;
+  const params = { model, messages };
+  if (generationConfig?.temperature != null) params.temperature = generationConfig.temperature;
+  if (generationConfig?.maxOutputTokens != null) params.max_tokens = generationConfig.maxOutputTokens;
+  if (!params.temperature) params.temperature = 0.3;
+  if (!params.max_tokens) params.max_tokens = 2048;
+
+  return params;
+}
+
+function openAIResponseToGemini(openAIResponse) {
+  const content = openAIResponse.choices?.[0]?.message?.content || "";
+  return {
+    candidates: [
+      {
+        content: {
+          parts: [{ text: content }],
+          role: "model",
+        },
+      },
+    ],
+  };
+}
 
 Deno.serve(async (req: Request) => {
-  // CORS headers
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+        "Access-Control-Allow-Headers":
+          "authorization, x-client-info, apikey, content-type",
       },
     });
   }
@@ -23,15 +88,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  if (!GEMINI_API_KEY) {
-    return new Response(
-      JSON.stringify({ error: "GEMINI_API_KEY not configured on server" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
   try {
-    const { contents, generationConfig, systemInstruction } = await req.json();
+    const { contents, generationConfig, systemInstruction, provider } =
+      await req.json();
 
     if (!contents || !Array.isArray(contents)) {
       return new Response(
@@ -40,15 +99,77 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (provider === "nvidia") {
+      if (!NVIDIA_API_KEY) {
+        return new Response(
+          JSON.stringify({ error: "NVIDIA_API_KEY not configured on server" }),
+          { status: 500, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      const openAIPayload = geminiToOpenAIPayload(contents, generationConfig);
+
+      if (systemInstruction?.parts) {
+        const sysText = systemInstruction.parts
+          .map((p: { text?: string }) => p.text || "")
+          .filter(Boolean)
+          .join("\n");
+        openAIPayload.messages.unshift({
+          role: "system",
+          content: sysText,
+        });
+      }
+
+      const response = await fetch(NVIDIA_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${NVIDIA_API_KEY}`,
+        },
+        body: JSON.stringify(openAIPayload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return new Response(JSON.stringify(data), {
+          status: response.status,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      }
+
+      return new Response(JSON.stringify(openAIResponseToGemini(data)), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+
+    // Default: Gemini
+    if (!GEMINI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "GEMINI_API_KEY not configured on server" }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     const body: Record<string, unknown> = { contents };
     if (generationConfig) body.generationConfig = generationConfig;
     if (systemInstruction) body.systemInstruction = systemInstruction;
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const response = await fetch(
+      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
 
     const data = await response.json();
 

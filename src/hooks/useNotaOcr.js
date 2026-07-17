@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import imageCompression from "browser-image-compression";
-import { callGeminiProxy } from "../lib/geminiProxy.js";
+import { callGeminiWithFallback } from "../lib/geminiProxy.js";
 
 function buildOcrPrompt(products) {
   const activeProducts = products.filter((p) => p.status === "Aktif");
@@ -92,7 +92,7 @@ export function useNotaOcr() {
       const mimeType = compressedFile.type || "image/jpeg";
       const prompt = buildOcrPrompt(allProducts);
 
-      const resData = await callGeminiProxy({
+      const resData = await callGeminiWithFallback({
         contents: [
           {
             parts: [

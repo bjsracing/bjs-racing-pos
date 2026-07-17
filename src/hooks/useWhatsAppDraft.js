@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { supabase } from "../supabaseClient.js";
-import { callGeminiProxy } from "../lib/geminiProxy.js";
+import { callGeminiWithFallback } from "../lib/geminiProxy.js";
 
 export function useWhatsAppDraft() {
   const [isDrafting, setIsDrafting] = useState(false);
@@ -74,7 +74,7 @@ Toko: BJS Racing
 Nomor WA: ${import.meta.env.VITE_SHOP_WHATSAPP || "0881011669213"}`;
 
     try {
-      const resData = await callGeminiProxy({
+      const resData = await callGeminiWithFallback({
         contents: [
           {
             role: "user",

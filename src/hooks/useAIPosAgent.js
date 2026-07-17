@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "../supabaseClient.js";
-import { callGeminiProxy } from "../lib/geminiProxy.js";
+import { callGeminiWithFallback } from "../lib/geminiProxy.js";
 
 function escapeLike(str) {
   return str.replace(/[%_]/g, "\\$&");
@@ -91,7 +91,7 @@ Contoh output:
       let parsedActions = [];
 
       if (aiProvider === "gemini") {
-        const resData = await callGeminiProxy({
+        const resData = await callGeminiWithFallback({
           contents: [
             {
               role: "user",
