@@ -294,7 +294,7 @@ const CartComponent = ({
 function Pos() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState({ id: null, nama_pelanggan: "Pelanggan Umum" });
   const [productSearch, setProductSearch] = useState("");
   const debouncedProductSearch = useDebounce(productSearch, 300);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -423,7 +423,7 @@ function Pos() {
     )
       return;
     setCart([]);
-    setSelectedCustomer(null);
+    setSelectedCustomer({ id: null, nama_pelanggan: "Pelanggan Umum" });
   };
   const handleAddToCart = (product) => {
     setCart((curr) => {
@@ -543,7 +543,7 @@ function Pos() {
     setProductSearch("");
     setFilteredProducts([]);
     setCashPaid("");
-    setSelectedCustomer(null);
+    setSelectedCustomer({ id: null, nama_pelanggan: "Pelanggan Umum" });
     setIsSubmitting(false);
     setActiveFilters({ merek: "semua", kategori: "semua" });
     forceRefresh();
