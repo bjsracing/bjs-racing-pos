@@ -21,7 +21,7 @@ function AIAssistantModal({
   const isMountedRef = useRef(true);
   const scrollRef = useRef(null);
 
-  const { processCommand, isProcessing, error, setError } = useAIPosAgent({
+  const { processCommand, isProcessing, error, setError, activeProvider } = useAIPosAgent({
     onAddProductToCart,
     onUpdateCartQuantity,
     onRemoveFromCart,
@@ -249,41 +249,50 @@ function AIAssistantModal({
         </div>
 
         {/* Input Bar */}
-        <div className="p-3 bg-white border-t border-slate-100 flex items-center space-x-2">
-          {isSupported ? (
-            <button
-              onClick={isListening ? stopListening : startListening}
+        <div className="p-3 bg-white border-t border-slate-100">
+          <div className="flex items-center space-x-2">
+            {isSupported ? (
+              <button
+                onClick={isListening ? stopListening : startListening}
+                disabled={isProcessing}
+                className={`p-3 rounded-full transition-all duration-300 ${
+                  isListening
+                    ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
+                    : "bg-slate-100 hover:bg-orange-100 text-slate-600 hover:text-orange-600"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                title={isListening ? "Hentikan perekaman suara" : "Gunakan perintah suara (Bahasa Indonesia)"}
+              >
+                <FiMic size={20} className={isListening ? "scale-110" : ""} />
+              </button>
+            ) : (
+              <span className="text-xs text-slate-400 max-w-[50px] leading-tight text-center">Mic unsupported</span>
+            )}
+
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleSubmitCommand()}
+              placeholder={isListening ? "Mendengarkan suara Anda..." : "Ketik perintah di sini (cth: 'tambah oli shell 2')"}
+              className="flex-grow p-3 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl text-sm transition-all focus:outline-none"
               disabled={isProcessing}
-              className={`p-3 rounded-full transition-all duration-300 ${
-                isListening
-                  ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
-                  : "bg-slate-100 hover:bg-orange-100 text-slate-600 hover:text-orange-600"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-              title={isListening ? "Hentikan perekaman suara" : "Gunakan perintah suara (Bahasa Indonesia)"}
+            />
+
+            <button
+              onClick={() => handleSubmitCommand()}
+              disabled={isProcessing || !inputText.trim()}
+              className="p-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all duration-300 shadow-md hover:shadow-orange-500/20 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
             >
-              <FiMic size={20} className={isListening ? "scale-110" : ""} />
+              <FiSend size={18} />
             </button>
-          ) : (
-            <span className="text-xs text-slate-400 max-w-[50px] leading-tight text-center">Mic unsupported</span>
+          </div>
+          {activeProvider && (
+            <p className="text-[10px] text-slate-400 mt-1.5 px-1">
+              🤖 {activeProvider.model} <span className="text-slate-300">•</span> <span className={
+                activeProvider.provider === "nvidia" ? "text-green-500" : "text-blue-400"
+              }>{activeProvider.provider === "nvidia" ? "NVIDIA NIM" : "Google Gemini"}</span>
+            </p>
           )}
-
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleSubmitCommand()}
-            placeholder={isListening ? "Mendengarkan suara Anda..." : "Ketik perintah di sini (cth: 'tambah oli shell 2')"}
-            className="flex-grow p-3 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-xl text-sm transition-all focus:outline-none"
-            disabled={isProcessing}
-          />
-
-          <button
-            onClick={() => handleSubmitCommand()}
-            disabled={isProcessing || !inputText.trim()}
-            className="p-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all duration-300 shadow-md hover:shadow-orange-500/20 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
-          >
-            <FiSend size={18} />
-          </button>
         </div>
 
       </div>

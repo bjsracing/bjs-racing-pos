@@ -35,7 +35,7 @@ export async function callGeminiProxy(payload, signal) {
   return response.json();
 }
 
-const RATE_LIMIT_KEYWORDS = ["high demand", "429", "503", "rate limit", "quota", "resource exhausted"];
+const RATE_LIMIT_KEYWORDS = ["high demand", "429", "503", "rate limit", "quota", "resource exhausted", "resourceexhausted"];
 
 function isRateLimitError(msg) {
   const lower = (msg || "").toLowerCase();

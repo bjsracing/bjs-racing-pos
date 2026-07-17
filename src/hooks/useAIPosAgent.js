@@ -17,6 +17,7 @@ export function useAIPosAgent({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [aiActions, setAiActions] = useState([]);
+  const [activeProvider, setActiveProvider] = useState(null);
 
   const callbacksRef = useRef({
     onAddProductToCart,
@@ -107,6 +108,7 @@ Contoh output:
         });
 
         const candidate = resData.candidates?.[0];
+        setActiveProvider({ provider: resData._provider || "gemini", model: resData._model || "gemini-3-flash-preview" });
         if (!candidate?.content?.parts?.[0]?.text) {
           throw new Error(
             "AI tidak dapat memproses perintah ini. Kemungkinan konten diblokir oleh filter keamanan.",
@@ -258,5 +260,6 @@ Contoh output:
     isProcessing,
     error,
     aiActions,
+    activeProvider,
   };
 }

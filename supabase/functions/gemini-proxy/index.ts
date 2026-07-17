@@ -55,8 +55,11 @@ function geminiToOpenAIPayload(contents, generationConfig) {
   return params;
 }
 
-function openAIResponseToGemini(openAIResponse) {
+function openAIResponseToGemini(openAIResponse, modelName) {
   const content = openAIResponse.choices?.[0]?.message?.content || "";
+  const displayName = modelName === NVIDIA_VISION_MODEL
+    ? "nemotron-nano-12b-v2-vl"
+    : "nemotron-3-ultra-550b-a55b";
   return {
     candidates: [
       {
@@ -66,6 +69,8 @@ function openAIResponseToGemini(openAIResponse) {
         },
       },
     ],
+    _provider: "nvidia",
+    _model: displayName,
   };
 }
 
@@ -132,7 +137,10 @@ Deno.serve(async (req: Request) => {
       const data = await response.json();
 
       if (!response.ok) {
-        return new Response(JSON.stringify(data), {
+    data._provider = "gemini";
+    data._model = "gemini-3-flash-preview";
+
+    return new Response(JSON.stringify(data), {
           status: response.status,
           headers: {
             "Content-Type": "application/json",
@@ -141,7 +149,7 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      return new Response(JSON.stringify(openAIResponseToGemini(data)), {
+      return new Response(JSON.stringify(openAIResponseToGemini(data, openAIPayload.model)), {
         status: 200,
         headers: {
           "Content-Type": "application/json",
