@@ -16,6 +16,7 @@ import {
   FiBriefcase,
   FiShoppingBag,
   FiTag,
+  FiCpu,
 } from "react-icons/fi";
 import { supabase } from "../supabaseClient.js";
 
@@ -77,6 +78,7 @@ function Navbar({ isOpen, onLinkClick }) {
       icon: <FiArchive />,
     },
     { name: "Riwayat Stok", path: "/histori-stok", icon: <FiClipboard /> },
+    { name: "Manajemen AI", path: "/manajemen-ai", icon: <FiCpu /> },
   ];
 
   const handleLogout = async () => {

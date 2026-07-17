@@ -3,17 +3,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const NVIDIA_API_KEY = Deno.env.get("NVIDIA_API_KEY");
 
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+const GEMINI_BASE_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models";
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const NVIDIA_TEXT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b";
-const NVIDIA_VISION_MODEL = "nvidia/nemotron-nano-12b-v2-vl";
+const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
+const DEFAULT_NVIDIA_TEXT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b";
+const DEFAULT_NVIDIA_VISION_MODEL = "nvidia/nemotron-nano-12b-v2-vl";
 
-function hasImageParts(contents) {
-  return contents.some((c) => c.parts?.some((p) => p.inlineData));
-}
-
-function geminiToOpenAIPayload(contents, generationConfig) {
+function geminiToOpenAIPayload(contents, generationConfig, modelOverrides) {
   const messages = [];
   let hasImages = false;
 
@@ -45,8 +42,10 @@ function geminiToOpenAIPayload(contents, generationConfig) {
     }
   }
 
-  const model = hasImages ? NVIDIA_VISION_MODEL : NVIDIA_TEXT_MODEL;
-  const params = { model, messages };
+  const defaultModel = hasImages
+    ? (modelOverrides?.nvidia_vision_model || DEFAULT_NVIDIA_VISION_MODEL)
+    : (modelOverrides?.nvidia_text_model || DEFAULT_NVIDIA_TEXT_MODEL);
+  const params = { model: defaultModel, messages };
   if (generationConfig?.temperature != null) params.temperature = generationConfig.temperature;
   if (generationConfig?.maxOutputTokens != null) params.max_tokens = generationConfig.maxOutputTokens;
   if (!params.temperature) params.temperature = 0.3;
@@ -55,11 +54,8 @@ function geminiToOpenAIPayload(contents, generationConfig) {
   return params;
 }
 
-function openAIResponseToGemini(openAIResponse, modelName) {
+function openAIResponseToGemini(openAIResponse) {
   const content = openAIResponse.choices?.[0]?.message?.content || "";
-  const displayName = modelName === NVIDIA_VISION_MODEL
-    ? "nemotron-nano-12b-v2-vl"
-    : "nemotron-3-ultra-550b-a55b";
   return {
     candidates: [
       {
@@ -69,8 +65,6 @@ function openAIResponseToGemini(openAIResponse, modelName) {
         },
       },
     ],
-    _provider: "nvidia",
-    _model: displayName,
   };
 }
 
@@ -94,7 +88,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { contents, generationConfig, systemInstruction, provider } =
+    const { contents, generationConfig, systemInstruction, provider, modelConfig } =
       await req.json();
 
     if (!contents || !Array.isArray(contents)) {
@@ -112,7 +106,7 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      const openAIPayload = geminiToOpenAIPayload(contents, generationConfig);
+      const openAIPayload = geminiToOpenAIPayload(contents, generationConfig, modelConfig);
 
       if (systemInstruction?.parts) {
         const sysText = systemInstruction.parts
@@ -137,10 +131,7 @@ Deno.serve(async (req: Request) => {
       const data = await response.json();
 
       if (!response.ok) {
-    data._provider = "gemini";
-    data._model = "gemini-3-flash-preview";
-
-    return new Response(JSON.stringify(data), {
+        return new Response(JSON.stringify(data), {
           status: response.status,
           headers: {
             "Content-Type": "application/json",
@@ -149,7 +140,7 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      return new Response(JSON.stringify(openAIResponseToGemini(data, openAIPayload.model)), {
+      return new Response(JSON.stringify(openAIResponseToGemini(data)), {
         status: 200,
         headers: {
           "Content-Type": "application/json",
@@ -166,12 +157,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const geminiModel = modelConfig?.gemini_model || DEFAULT_GEMINI_MODEL;
     const body: Record<string, unknown> = { contents };
     if (generationConfig) body.generationConfig = generationConfig;
     if (systemInstruction) body.systemInstruction = systemInstruction;
 
     const response = await fetch(
-      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+      `${GEMINI_BASE_URL}/${geminiModel}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -190,6 +182,9 @@ Deno.serve(async (req: Request) => {
         },
       });
     }
+
+    data._provider = "gemini";
+    data._model = geminiModel;
 
     return new Response(JSON.stringify(data), {
       status: 200,
