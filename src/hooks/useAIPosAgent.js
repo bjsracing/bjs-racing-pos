@@ -2,10 +2,6 @@ import { useState, useCallback, useRef } from "react";
 import { supabase } from "../supabaseClient.js";
 import { callGeminiWithFallback } from "../lib/geminiProxy.js";
 
-function escapeLike(str) {
-  return str.replace(/[%_]/g, "\\$&");
-}
-
 export function useAIPosAgent({
   onAddProductToCart,
   onUpdateCartQuantity,
@@ -35,16 +31,36 @@ export function useAIPosAgent({
   const findBestMatchingProduct = async (searchQuery) => {
     if (!searchQuery || !searchQuery.trim()) return [];
     try {
-      const escaped = escapeLike(searchQuery.trim());
+      const keywords = searchQuery
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 1);
+
       const { data, error } = await supabase
         .from("products")
         .select("id, nama, merek, kode, kategori, harga_jual, harga_beli, stok, stok_min, satuan_dasar, satuan_pembelian, nilai_konversi, status")
-        .or(`nama.ilike.%${escaped}%,kode.ilike.%${escaped}%,merek.ilike.%${escaped}%`)
         .eq("status", "Aktif")
-        .limit(3);
+        .limit(500);
 
       if (error) throw error;
-      return data || [];
+
+      const scored = (data || []).map((p) => {
+        const namaLower = (p.nama || "").toLowerCase();
+        const merekLower = (p.merek || "").toLowerCase();
+        const kodeLower = (p.kode || "").toLowerCase();
+        const combined = `${namaLower} ${merekLower} ${kodeLower}`;
+        let score = 0;
+        for (const kw of keywords) {
+          if (combined.includes(kw)) score++;
+        }
+        return { ...p, _score: score };
+      });
+
+      return scored
+        .filter((p) => p._score > 0)
+        .sort((a, b) => b._score - a._score)
+        .slice(0, 3);
     } catch (err) {
       console.error("Gagal melakukan pencarian produk di database:", err);
       return [];
@@ -68,6 +84,16 @@ Anda dapat mengenali aksi-aksi berikut:
 2. UPDATE_QUANTITY: Kasir ingin mengubah kuantitas barang yang ada di keranjang. Contoh: "ubah jumlah mpx2 jadi 5" atau "tambah mpx2 3 biji lagi".
 3. REMOVE_FROM_CART: Kasir ingin membatalkan/menghapus barang dari keranjang. Contoh: "hapus oli mpx2" atau "batalkan kampas rem".
 4. CLEAR_CART: Kasir ingin mengosongkan keranjang. Contoh: "kosongkan keranjang", "reset transaksi", atau "batal semua".
+
+ATURAN PENCARIAN PRODUK (SANGAT PENTING):
+- search_query HANYA berisi kata kunci produk yang relevan. JANGAN tambah kata generik seperti "pilok", "cat", "spray", "oli", "ban" kecuali memang bagian dari nama produk.
+- Produk Diton: nama produk adalah warnanya (contoh: "White", "Black Doff", "Pearl White", "Red"), merek = "Diton". Jika user menyebut "diton", cukup pakai merek "Diton" + warna/nama produk.
+- Produk Oli: nama produk biasanya sudah lengkap (contoh: "Shell Helix Ultra ECT C2 5W-30", "Federal Mpx2").
+- Contoh benar: user "Diton white 5 pcs" → search_query: "Diton White", quantity: 5
+- Contoh benar: user "pilok diton hitam doff 1" → search_query: "Diton Black Doff", quantity: 1
+- Contoh benar: user "oli shell 2" → search_query: "Shell Helix", quantity: 2
+- Contoh benar: user "kampas rem bendix 3" → search_query: "kampas rem Bendix", quantity: 3
+- Contoh SALAH: user "Diton white 5" → search_query: "pilok diton white" (terlalu banyak kata tidak perlu)
 
 ATURAN OUTPUT:
 - Harus mengembalikan data dalam format JSON array murni tanpa komentar, penjelasan, atau markdown wrapper.
