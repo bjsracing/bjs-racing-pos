@@ -78,10 +78,16 @@ function Produk() {
 
   const forceRefresh = () => setRefreshTrigger((t) => t + 1);
 
+  const PREDEFINED_PRICE_RANGES = [
+    "semua", "nol", "0-15000", "15000-25000",
+    "25000-50000", "50000-100000", "100000+",
+  ];
+
   useEffect(() => {
     let isActive = true;
     const fetchProducts = async () => {
       setLoading(true);
+      const isCustomPrice = !PREDEFINED_PRICE_RANGES.includes(activeFilters.price_range);
       const { data, error } = await supabase.rpc("search_products", {
         search_term: debouncedSearchTerm,
         merek_filter: activeFilters.merek,
@@ -91,14 +97,26 @@ function Produk() {
         supplier_filter: activeFilters.supplier,
         ukuran_filter: activeFilters.ukuran,
         lini_produk_filter: activeFilters.lini_produk,
-        price_range: activeFilters.price_range,
+        price_range: isCustomPrice ? "semua" : activeFilters.price_range,
       });
       if (isActive) {
         if (error) {
           console.error("Error fetching products:", error);
           setProducts([]);
         } else if (data) {
-          setProducts(data);
+          let result = data;
+          if (isCustomPrice && activeFilters.price_range) {
+            const parts = activeFilters.price_range.split("-");
+            const min = parseInt(parts[0], 10) || 0;
+            const max = parts[1] && !parts[1].includes("+")
+              ? parseInt(parts[1], 10)
+              : Infinity;
+            result = data.filter((p) => {
+              const harga = parseFloat(p.harga_jual) || 0;
+              return harga >= min && harga <= max;
+            });
+          }
+          setProducts(result);
         }
         setLoading(false);
       }
