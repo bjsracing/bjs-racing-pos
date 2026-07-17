@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FiX } from "react-icons/fi";
+import SearchableSelect from "./SearchableSelect";
 
 const PurchaseFilterModal = ({
   isOpen,
@@ -47,77 +48,36 @@ const PurchaseFilterModal = ({
           </button>
         </div>
         <div className="p-6 space-y-4">
-          <div>
-            <label
-              htmlFor="modal-filter-merek"
-              className="block text-sm font-medium text-slate-700 mb-1"
-            >
-              Merek
-            </label>
-            <select
-              id="modal-filter-merek"
-              value={filters.merek}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, merek: e.target.value }))
-              }
-              className="w-full p-2 border rounded-lg bg-white"
-            >
-              <option value="semua">Semua Merek</option>
-              {merekOptions.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="modal-filter-kategori"
-              className="block text-sm font-medium text-slate-700 mb-1"
-            >
-              Kategori
-            </label>
-            <select
-              id="modal-filter-kategori"
-              value={filters.kategori}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, kategori: e.target.value }))
-              }
-              className="w-full p-2 border rounded-lg bg-white"
-            >
-              <option value="semua">Semua Kategori</option>
-              {kategoriOptions.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </div>
-          {/* DIUBAH: Filter supplier diaktifkan kembali dan disesuaikan */}
-          <div>
-            <label
-              htmlFor="modal-filter-supplier"
-              className="block text-sm font-medium text-slate-700 mb-1"
-            >
-              Supplier
-            </label>
-            <select
-              id="modal-filter-supplier"
-              value={filters.supplier}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, supplier: e.target.value }))
-              }
-              className="w-full p-2 border rounded-lg bg-white"
-            >
-              <option value="semua">Semua Supplier</option>
-              {/* Mengirim nama_supplier sebagai value */}
-              {supplierOptions.map((s) => (
-                <option key={s.id} value={s.nama_supplier}>
-                  {s.nama_supplier}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SearchableSelect
+            label="Merek"
+            value={filters.merek}
+            options={merekOptions}
+            placeholder="Cari merek..."
+            allLabel="Semua Merek"
+            onSelect={(val) =>
+              setFilters((prev) => ({ ...prev, merek: val }))
+            }
+          />
+          <SearchableSelect
+            label="Kategori"
+            value={filters.kategori}
+            options={kategoriOptions}
+            placeholder="Cari kategori..."
+            allLabel="Semua Kategori"
+            onSelect={(val) =>
+              setFilters((prev) => ({ ...prev, kategori: val }))
+            }
+          />
+          <SearchableSelect
+            label="Supplier"
+            value={filters.supplier}
+            options={supplierOptions.map((s) => s.nama_supplier)}
+            placeholder="Cari supplier..."
+            allLabel="Semua Supplier"
+            onSelect={(val) =>
+              setFilters((prev) => ({ ...prev, supplier: val }))
+            }
+          />
         </div>
         <div className="p-4 bg-slate-50 border-t flex justify-end gap-3">
           <button
