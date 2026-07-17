@@ -200,17 +200,28 @@ function AIAssistantModal({
           {ambiguousMatches.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-2 shadow-inner">
               <p className="text-xs font-bold text-amber-900">Pilih produk yang paling sesuai:</p>
-              <div className="grid grid-cols-1 gap-1.5">
+              <div className="grid grid-cols-1 gap-1.5 max-h-[250px] overflow-y-auto">
                 {ambiguousMatches[0].options.map((prod) => (
                   <button
                     key={prod.id}
                     onClick={() => handleSelectAmbiguousProduct(prod, ambiguousMatches[0].quantity)}
                     className="flex justify-between items-center text-left text-xs bg-white hover:bg-orange-100 p-2.5 rounded-lg border border-slate-200 hover:border-orange-300 transition-all font-medium text-slate-700"
                   >
-                    <span>
-                      {prod.nama} <span className="text-blue-600 italic">({prod.merek || "Tanpa Merek"})</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="font-semibold">{prod.nama}</span>
+                      <span className="text-blue-600 italic ml-1">({prod.merek || "Tanpa Merek"})</span>
+                      {prod.ukuran && (
+                        <span className="ml-1.5 inline-block px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">
+                          {prod.ukuran}
+                        </span>
+                      )}
+                      {prod.stok <= 0 && (
+                        <span className="ml-1.5 inline-block px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[10px] font-bold">
+                          Stok Habis
+                        </span>
+                      )}
                     </span>
-                    <span className="text-orange-600 font-bold flex items-center space-x-1">
+                    <span className="text-orange-600 font-bold flex items-center space-x-1 flex-shrink-0 ml-2">
                       <span>Rp {prod.harga_jual?.toLocaleString("id-ID")}</span>
                       <FiPlus className="ml-1 bg-orange-500 text-white rounded p-0.5" size={16} />
                     </span>

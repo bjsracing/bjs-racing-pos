@@ -39,7 +39,7 @@ export function useAIPosAgent({
 
       const { data, error } = await supabase
         .from("products")
-        .select("id, nama, merek, kode, kategori, harga_jual, harga_beli, stok, stok_min, satuan_dasar, satuan_pembelian, nilai_konversi, status")
+        .select("id, nama, merek, kode, kategori, harga_jual, harga_beli, stok, stok_min, satuan_dasar, satuan_pembelian, nilai_konversi, status, ukuran")
         .eq("status", "Aktif")
         .limit(500);
 
@@ -49,7 +49,8 @@ export function useAIPosAgent({
         const namaLower = (p.nama || "").toLowerCase();
         const merekLower = (p.merek || "").toLowerCase();
         const kodeLower = (p.kode || "").toLowerCase();
-        const combined = `${namaLower} ${merekLower} ${kodeLower}`;
+        const ukuranLower = (p.ukuran || "").toLowerCase();
+        const combined = `${namaLower} ${merekLower} ${kodeLower} ${ukuranLower}`;
         let score = 0;
         for (const kw of keywords) {
           if (combined.includes(kw)) score++;
@@ -59,8 +60,7 @@ export function useAIPosAgent({
 
       return scored
         .filter((p) => p._score > 0)
-        .sort((a, b) => b._score - a._score)
-        .slice(0, 3);
+        .sort((a, b) => b._score - a._score);
     } catch (err) {
       console.error("Gagal melakukan pencarian produk di database:", err);
       return [];
@@ -86,14 +86,24 @@ Anda dapat mengenali aksi-aksi berikut:
 4. CLEAR_CART: Kasir ingin mengosongkan keranjang. Contoh: "kosongkan keranjang", "reset transaksi", atau "batal semua".
 
 ATURAN PENCARIAN PRODUK (SANGAT PENTING):
-- search_query HANYA berisi kata kunci produk yang relevan. JANGAN tambah kata generik seperti "pilok", "cat", "spray", "oli", "ban" kecuali memang bagian dari nama produk.
-- Produk Diton: nama produk adalah warnanya (contoh: "White", "Black Doff", "Pearl White", "Red"), merek = "Diton". Jika user menyebut "diton", cukup pakai merek "Diton" + warna/nama produk.
+- search_query HANYA berisi kata kunci produk yang relevan. JANGAN tambah kata generik seperti "pilok", "cat", "spray" kecuali memang bagian dari nama produk.
+- Produk Diton Pilok: nama = warna (contoh: "White", "Black Doff", "Pearl White", "Red"), merek = "Diton". Setiap warna tersedia dalam 3 ukuran: 150ml, 300ml, 400ml.
+- Jika user menyebut ukuran pilok (150ml, 300ml, 400ml, kecil, sedang, besar), SERTAKAN di search_query. Contoh: "Diton Black 300ml"
+- Jika user TIDAK menyebut ukuran, JANGAN sertakan ukuran di search_query. Sistem akan menampilkan semua ukuran yang tersedia.
 - Produk Oli: nama produk biasanya sudah lengkap (contoh: "Shell Helix Ultra ECT C2 5W-30", "Federal Mpx2").
-- Contoh benar: user "Diton white 5 pcs" → search_query: "Diton White", quantity: 5
-- Contoh benar: user "pilok diton hitam doff 1" → search_query: "Diton Black Doff", quantity: 1
-- Contoh benar: user "oli shell 2" → search_query: "Shell Helix", quantity: 2
-- Contoh benar: user "kampas rem bendix 3" → search_query: "kampas rem Bendix", quantity: 3
-- Contoh SALAH: user "Diton white 5" → search_query: "pilok diton white" (terlalu banyak kata tidak perlu)
+- Produk Kampas/Part: gunakan kata kunci merek dan tipe (contoh: "kampas rem Bendix", " rantai TK").
+
+Contoh benar:
+- user "Diton white 5 pcs" → search_query: "Diton White", quantity: 5
+- user "Diton black 300ml 2" → search_query: "Diton Black 300ml", quantity: 2
+- user "Diton black doff 400ml 1" → search_query: "Diton Black Doff 400ml", quantity: 1
+- user "pilok diton hitam doff 1" → search_query: "Diton Black Doff", quantity: 1
+- user "oli shell 2" → search_query: "Shell Helix", quantity: 2
+- user "kampas rem bendix 3" → search_query: "kampas rem Bendix", quantity: 3
+
+Contoh SALAH:
+- user "Diton white 5" → search_query: "pilok diton white" (JANGAN tambah "pilok")
+- user "Diton black 300ml 2" → search_query: "Diton Black" (HILANGKAN ukuran, harusnya sertakan "300ml")
 
 ATURAN OUTPUT:
 - Harus mengembalikan data dalam format JSON array murni tanpa komentar, penjelasan, atau markdown wrapper.
@@ -107,11 +117,11 @@ ATURAN OUTPUT:
     }
   ]
 
-Contoh input: "masukin oli federal mpx2 dua botol sama pilok diton hitam doff satu"
+Contoh input: "masukin oli federal mpx2 dua botol sama pilok diton hitam doff satu 300ml"
 Contoh output:
 [
-  {"action": "ADD_TO_CART", "search_query": "oli federal mpx2", "quantity": 2, "notes": ""},
-  {"action": "ADD_TO_CART", "search_query": "pilok diton hitam doff", "quantity": 1, "notes": "hitam doff"}
+  {"action": "ADD_TO_CART", "search_query": "Federal Mpx2", "quantity": 2, "notes": ""},
+  {"action": "ADD_TO_CART", "search_query": "Diton Black Doff 300ml", "quantity": 1, "notes": "hitam doff"}
 ]`;
 
     try {
@@ -240,24 +250,25 @@ Contoh output:
 
         if (matchedProducts.length === 1) {
           const product = matchedProducts[0];
+          const sizeInfo = product.ukuran ? ` (${product.ukuran})` : "";
 
           if (action === "ADD_TO_CART" && callbacksRef.current.onAddProductToCart) {
             callbacksRef.current.onAddProductToCart(product, quantity);
             executionSummary.push({
               status: "success",
-              message: `Berhasil menambahkan ${quantity} x ${product.nama} ke keranjang.`,
+              message: `Berhasil menambahkan ${quantity} x ${product.nama}${sizeInfo} ke keranjang.`,
             });
           } else if (action === "UPDATE_QUANTITY" && callbacksRef.current.onUpdateCartQuantity) {
             callbacksRef.current.onUpdateCartQuantity(product.id, quantity);
             executionSummary.push({
               status: "success",
-              message: `Berhasil mengubah kuantitas ${product.nama} menjadi ${quantity}.`,
+              message: `Berhasil mengubah kuantitas ${product.nama}${sizeInfo} menjadi ${quantity}.`,
             });
           } else if (action === "REMOVE_FROM_CART" && callbacksRef.current.onRemoveFromCart) {
             callbacksRef.current.onRemoveFromCart(product.id);
             executionSummary.push({
               status: "success",
-              message: `Berhasil menghapus ${product.nama} dari keranjang.`,
+              message: `Berhasil menghapus ${product.nama}${sizeInfo} dari keranjang.`,
             });
           }
         } else {
