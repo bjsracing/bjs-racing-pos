@@ -58,9 +58,15 @@ export function useAIPosAgent({
         return { ...p, _score: score };
       });
 
-      return scored
-        .filter((p) => p._score > 0)
-        .sort((a, b) => b._score - a._score);
+      let results = scored.filter((p) => p._score === keywords.length);
+      if (results.length === 0 && keywords.length >= 2) {
+        results = scored.filter((p) => p._score >= 2);
+      }
+      if (results.length === 0) {
+        results = scored.filter((p) => p._score > 0);
+      }
+
+      return results.sort((a, b) => b._score - a._score);
     } catch (err) {
       console.error("Gagal melakukan pencarian produk di database:", err);
       return [];
