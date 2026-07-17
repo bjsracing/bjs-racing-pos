@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 
+const MAX_PRICE = 5000000;
+
 const PRESETS = [
   { value: "semua", label: "Semua" },
   { value: "nol", label: "Rp 0" },
@@ -52,7 +54,7 @@ const PriceRangeSlider = ({ value, priceCounts = {}, onChange }) => {
     setInputMax(formatPrice(max));
   }, [value]);
 
-  const dynamicMax = Math.max(localMin, localMax, 50000) * 1.5;
+  const dynamicMax = Math.min(Math.max(localMin, localMax, 50000) * 1.5, MAX_PRICE);
 
   const getPercent = useCallback(
     (val) => {
@@ -67,7 +69,8 @@ const PriceRangeSlider = ({ value, priceCounts = {}, onChange }) => {
       if (!trackRef.current) return 0;
       const rect = trackRef.current.getBoundingClientRect();
       const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      return Math.round((pct * dynamicMax) / 1000) * 1000;
+      const raw = Math.min(Math.round((pct * dynamicMax) / 1000) * 1000, MAX_PRICE);
+      return raw;
     },
     [dynamicMax]
   );
@@ -85,11 +88,11 @@ const PriceRangeSlider = ({ value, priceCounts = {}, onChange }) => {
       const val = getValueFromPosition(clientX);
 
       if (dragging === "min") {
-        const newMin = Math.min(val, localMax || dynamicMax);
+        const newMin = Math.min(val, localMax || dynamicMax, MAX_PRICE);
         setLocalMin(newMin);
         setInputMin(formatPrice(newMin));
       } else {
-        const newMax = Math.max(val, localMin);
+        const newMax = Math.min(Math.max(val, localMin), MAX_PRICE);
         setLocalMax(newMax);
         setInputMax(formatPrice(newMax));
       }
@@ -97,8 +100,8 @@ const PriceRangeSlider = ({ value, priceCounts = {}, onChange }) => {
 
     const handleUp = () => {
       setDragging(null);
-      const finalMin = dragging === "min" ? Math.min(localMin, localMax || dynamicMax) : localMin;
-      const finalMax = dragging === "max" ? Math.max(localMax, localMin) : localMax;
+      const finalMin = Math.min(dragging === "min" ? Math.min(localMin, localMax || dynamicMax) : localMin, MAX_PRICE);
+      const finalMax = Math.min(dragging === "max" ? Math.max(localMax, localMin) : localMax, MAX_PRICE);
       setLocalMin(finalMin);
       setLocalMax(finalMax);
       onChange(toRPCValue(finalMin, finalMax));
@@ -120,7 +123,7 @@ const PriceRangeSlider = ({ value, priceCounts = {}, onChange }) => {
     const raw = e.target.value.replace(/[^0-9]/g, "");
     setInputMin(raw);
     if (raw !== "") {
-      const val = parseInt(raw, 10);
+      const val = Math.min(parseInt(raw, 10), MAX_PRICE);
       if (!isNaN(val)) {
         setLocalMin(val);
         onChange(toRPCValue(val, localMax));
@@ -132,7 +135,7 @@ const PriceRangeSlider = ({ value, priceCounts = {}, onChange }) => {
     const raw = e.target.value.replace(/[^0-9]/g, "");
     setInputMax(raw);
     if (raw !== "") {
-      const val = parseInt(raw, 10);
+      const val = Math.min(parseInt(raw, 10), MAX_PRICE);
       if (!isNaN(val)) {
         setLocalMax(val);
         onChange(toRPCValue(localMin, val));
