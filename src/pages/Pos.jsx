@@ -108,7 +108,19 @@ const CartComponent = ({
         cart.map((item) => (
           <div key={item.id} className="pb-4 border-b last:border-b-0">
             <div className="flex justify-between items-start">
-              <p className="font-bold w-full pr-2">{item.nama}</p>
+              <div className="w-full pr-2">
+                <p className="font-bold">
+                  {item.nama}
+                  <span className="text-xs font-normal text-slate-400 ml-1">
+                    ({item.kode || "N/A"})
+                  </span>
+                </p>
+                {item.merek && (
+                  <p className="text-xs font-medium text-orange-500">
+                    {item.merek}
+                  </p>
+                )}
+              </div>
               <button
                 onClick={() => handleRemoveFromCart(item.id)}
                 className="text-red-500 flex-shrink-0"
@@ -116,11 +128,25 @@ const CartComponent = ({
                 <FiTrash2 size={18} />
               </button>
             </div>
-            <p className="text-sm text-slate-500">
-              Rp {new Intl.NumberFormat("id-ID").format(item.harga_jual)}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5">
+              {item.ukuran && <span>{item.ukuran}</span>}
+              {item.ukuran && <span>·</span>}
+              <span>
+                Rp{" "}
+                {new Intl.NumberFormat("id-ID").format(item.harga_jual)}
+              </span>
+              <span>·</span>
+              {item.stok > 0 ? (
+                <span className={item.stok <= (item.stok_min || 5) ? "text-amber-600 font-medium" : ""}>
+                  Stok: {item.stok}
+                  {item.stok <= (item.stok_min || 5) && " !"}
+                </span>
+              ) : (
+                <span className="text-red-500 font-semibold">⚠ Stok Habis</span>
+              )}
+            </div>
             <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() =>
                     handleCartChange(item.id, "quantity", item.quantity - 1)
@@ -144,6 +170,22 @@ const CartComponent = ({
                   className="text-slate-500"
                 >
                   <FiPlusCircle />
+                </button>
+                <button
+                  onClick={() =>
+                    handleCartChange(item.id, "quantity", item.quantity + 5)
+                  }
+                  className="text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-600 hover:bg-slate-300 font-semibold"
+                >
+                  +5
+                </button>
+                <button
+                  onClick={() =>
+                    handleCartChange(item.id, "quantity", item.quantity + 10)
+                  }
+                  className="text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-600 hover:bg-slate-300 font-semibold"
+                >
+                  +10
                 </button>
               </div>
               <p className="font-semibold">
