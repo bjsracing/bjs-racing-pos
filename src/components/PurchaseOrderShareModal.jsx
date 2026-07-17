@@ -1,6 +1,11 @@
 import React, { useRef, useState } from "react";
-import { FiX, FiDownload, FiMessageSquare } from "react-icons/fi";
-import * as htmlToImage from "html-to-image"; // Pastikan library ini sudah ter-install
+import {
+  FiX,
+  FiDownload,
+  FiMessageSquare,
+  FiUsers,
+} from "react-icons/fi";
+import * as htmlToImage from "html-to-image";
 
 const PurchaseOrderShareModal = ({ isOpen, onClose, orderData }) => {
   const documentRef = useRef();
@@ -38,22 +43,8 @@ const PurchaseOrderShareModal = ({ isOpen, onClose, orderData }) => {
     }
   };
 
-  // --- FUNGSI UNTUK SHARE KE WHATSAPP ---
-  const handleShareToWhatsApp = () => {
-    if (!orderData.supplier_phone) {
-      alert(
-        "Tidak bisa mengirim ke WhatsApp karena nomor telepon supplier tidak terdaftar."
-      );
-      return;
-    }
-
-    // Format nomor telepon ke format internasional (62xxx)
-    let phoneNumber = orderData.supplier_phone.replace(/[^0-9]/g, "");
-    if (phoneNumber.startsWith("0")) {
-      phoneNumber = "62" + phoneNumber.substring(1);
-    }
-
-    // Buat teks pesan dengan format WhatsApp
+  // --- FUNGSI GENERATE TEKS PESAN PO ---
+  const generatePOMessage = () => {
     let message = `*PESANAN PEMBELIAN (PO)*\n\n`;
     message += `*No. PO:* ${orderData.po_number}\n`;
     message += `*Supplier:* ${orderData.supplier_name}\n\n`;
@@ -74,11 +65,36 @@ const PurchaseOrderShareModal = ({ isOpen, onClose, orderData }) => {
     });
 
     message += `Mohon untuk segera disiapkan dan diinfo lebih lanjut. Terima kasih.`;
+    return message;
+  };
 
-    // Encode pesan untuk URL dan buka di tab baru
+  // --- FUNGSI KIRIM KE NOMOR SUPPLIER ---
+  const handleShareToSupplier = () => {
+    if (!orderData.supplier_phone) {
+      alert(
+        "Tidak bisa mengirim ke WhatsApp karena nomor telepon supplier tidak terdaftar."
+      );
+      return;
+    }
+
+    // Format nomor telepon ke format internasional (62xxx)
+    let phoneNumber = orderData.supplier_phone.replace(/[^0-9]/g, "");
+    if (phoneNumber.startsWith("0")) {
+      phoneNumber = "62" + phoneNumber.substring(1);
+    }
+
+    const message = generatePOMessage();
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
       message
     )}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+  // --- FUNGSI KIRIM KE NOMOR LAIN / GROUP WA ---
+  const handleShareToOther = () => {
+    const message = generatePOMessage();
+    // Buka WhatsApp tanpa nomor tujuan → user pilih kontak/grup sendiri
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
   };
 
@@ -191,7 +207,7 @@ const PurchaseOrderShareModal = ({ isOpen, onClose, orderData }) => {
           </div>
         </div>
 
-        <div className="p-4 bg-slate-200 border-t rounded-b-xl grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="p-4 bg-slate-200 border-t rounded-b-xl grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={handleDownload}
             disabled={isProcessing}
@@ -201,12 +217,19 @@ const PurchaseOrderShareModal = ({ isOpen, onClose, orderData }) => {
             <span>{isProcessing ? "Memproses..." : "Unduh PO"}</span>
           </button>
           <button
-            onClick={handleShareToWhatsApp}
+            onClick={handleShareToSupplier}
             disabled={!orderData.supplier_phone}
             className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg disabled:bg-slate-400 disabled:cursor-not-allowed"
           >
             <FiMessageSquare />
-            <span>Kirim ke WA</span>
+            <span>Kirim ke Supplier</span>
+          </button>
+          <button
+            onClick={handleShareToOther}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg"
+          >
+            <FiUsers />
+            <span>Kirim ke Nomor Lain</span>
           </button>
         </div>
       </div>

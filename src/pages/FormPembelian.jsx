@@ -584,7 +584,7 @@ const FormPembelian = () => {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari Kode, Nama, Merek..."
+              placeholder="Cari Kode, Nama, Merek, Supplier..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full p-2 pl-10 border rounded-lg"
@@ -623,6 +623,14 @@ const FormPembelian = () => {
                         {p.kategori || "-"}
                       </span>
                     </p>
+                    {p.supplier && (
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Supplier:{" "}
+                        <span className="font-medium text-slate-500">
+                          {p.supplier}
+                        </span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
