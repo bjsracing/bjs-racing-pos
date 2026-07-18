@@ -264,6 +264,37 @@ const FormPembelian = () => {
     );
   };
 
+  // Parse harga nota dari catatan_item ("Harga nota: Rp<angka>").
+  const parseNotaPrice = (catatan) => {
+    if (!catatan) return null;
+    const m = catatan.match(/Harga nota:\s*Rp([\d.,]+)/i);
+    if (!m) return null;
+    const clean = m[1].replace(/\./g, "").replace(/,/g, ".");
+    const num = parseFloat(clean);
+    return isNaN(num) ? null : num;
+  };
+
+  // Update harga_beli produk mengikuti harga nota OCR.
+  const updateProductPricesFromNota = async (items) => {
+    const updates = items
+      .map((item) => ({
+        product_id: item.product_id,
+        price: parseNotaPrice(item.catatan_item),
+      }))
+      .filter((u) => u.product_id && u.price && u.price > 0);
+
+    if (updates.length === 0) return;
+
+    await Promise.all(
+      updates.map((u) =>
+        supabase
+          .from("products")
+          .update({ harga_beli: u.price })
+          .eq("id", u.product_id),
+      ),
+    );
+  };
+
   const handleSaveOrder = async () => {
     if (orderItems.length === 0)
       return alert("Silakan tambahkan minimal satu produk.");
@@ -298,6 +329,7 @@ const FormPembelian = () => {
           .from("purchase_order_items")
           .insert(itemsToInsertPayload(poId));
         if (itemsError) throw itemsError;
+        await updateProductPricesFromNota(orderItems);
         alert(`Pesanan berhasil diperbarui!`);
         navigate("/pembelian");
       } else {
@@ -316,6 +348,7 @@ const FormPembelian = () => {
           .from("purchase_order_items")
           .insert(itemsToInsertPayload(newOrder.id));
         if (itemsError) throw itemsError;
+        await updateProductPricesFromNota(orderItems);
         const requestIdsToUpdate =
           selectedRequestIds || (requestedProduct ? [requestedProduct.id] : []);
         if (requestIdsToUpdate.length > 0) {
