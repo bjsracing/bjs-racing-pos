@@ -493,6 +493,9 @@ const FormPembelian = () => {
         onConfirm={handleOcrConfirm}
         allProducts={allProducts}
         existingItems={orderItems}
+        selectedSupplierId={selectedSupplier}
+        selectedSupplierName={supplierOptions.find((s) => s.id === selectedSupplier)?.nama_supplier || ""}
+        supplierOptions={supplierOptions}
       />
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">

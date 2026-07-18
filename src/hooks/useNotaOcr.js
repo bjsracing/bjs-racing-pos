@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import imageCompression from "browser-image-compression";
 import { callGeminiWithFallback } from "../lib/geminiProxy.js";
 
-function buildOcrPrompt(products) {
+function buildOcrPrompt(products, supplierName) {
   const activeProducts = products.filter((p) => p.status === "Aktif");
   if (activeProducts.length > 500) {
     console.warn(
@@ -16,14 +16,19 @@ function buildOcrPrompt(products) {
       merek: p.merek,
       kategori: p.kategori,
       ukuran: p.ukuran || "",
+      supplier: p.supplier || "",
     }));
+
+  const supplierContext = supplierName
+    ? `\nSUPPLIER NOTA INI: ${supplierName}\nProduk dari supplier ini harus DIPRIORITASKAN. Jika ada beberapa kemungkinan cocok, pilih yang supplier-nya sama dengan supplier nota.\n`
+    : "";
 
   return `Anda adalah AI assistant toko sparepart motor "BJS Racing".
 
 TUGAS ANDA (2 LANGKAH SEKALIGUS):
 1. Baca/gambar nota pembelian fisik dari supplier. Ekstrak SEMUA item barang: nama barang, kuantitas, dan harga beli satuan.
 2. Cocokkan setiap item hasil ekstrak dengan daftar produk database toko di bawah ini.
-
+${supplierContext}
 DATABASE PRODUK TOKO:
 ${JSON.stringify(productList)}
 
@@ -71,7 +76,7 @@ export function useNotaOcr() {
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState("");
 
-  const processImage = useCallback(async (file, allProducts) => {
+  const processImage = useCallback(async (file, allProducts, supplierName) => {
     if (!file) return [];
 
     setIsProcessing(true);
@@ -90,7 +95,7 @@ export function useNotaOcr() {
       const base64Data = await fileToBase64(compressedFile);
 
       const mimeType = compressedFile.type || "image/jpeg";
-      const prompt = buildOcrPrompt(allProducts);
+      const prompt = buildOcrPrompt(allProducts, supplierName);
 
       const resData = await callGeminiWithFallback({
         contents: [

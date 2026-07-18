@@ -44,7 +44,7 @@ function ConfidenceBadge({ confidence }) {
   );
 }
 
-function ItemCard({ item, allProducts, onUpdate, onRemove, onOverrideProduct }) {
+function ItemCard({ item, allProducts, onUpdate, onRemove, onOverrideProduct, supplierName }) {
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -60,19 +60,36 @@ function ItemCard({ item, allProducts, onUpdate, onRemove, onOverrideProduct }) 
     }
     const seq = ++searchSeqRef.current;
     setSearching(true);
-    supabase
-      .rpc("search_products", { search_term: debouncedSearch })
-      .then(({ data, error }) => {
+
+    const doSearch = async () => {
+      if (supplierName) {
+        const { data, error } = await supabase
+          .rpc("search_products", { search_term: debouncedSearch });
         if (seq !== searchSeqRef.current) return;
-        if (error) {
-          console.error("Ganti search error:", error);
-          setSearchResults([]);
-        } else {
-          setSearchResults((data || []).slice(0, 15));
+        if (!error && data && data.length > 0) {
+          const matched = data.filter(
+            (p) => p.supplier?.toLowerCase() === supplierName.toLowerCase()
+          );
+          if (matched.length > 0) {
+            setSearchResults(matched.slice(0, 15));
+            setSearching(false);
+            return;
+          }
         }
-        setSearching(false);
-      });
-  }, [debouncedSearch]);
+      }
+      const { data, error } = await supabase
+        .rpc("search_products", { search_term: debouncedSearch });
+      if (seq !== searchSeqRef.current) return;
+      if (error) {
+        console.error("Ganti search error:", error);
+        setSearchResults([]);
+      } else {
+        setSearchResults((data || []).slice(0, 15));
+      }
+      setSearching(false);
+    };
+    doSearch();
+  }, [debouncedSearch, supplierName]);
 
   const handleProductSearch = (term) => {
     setProductSearch(term);
@@ -98,6 +115,9 @@ function ItemCard({ item, allProducts, onUpdate, onRemove, onOverrideProduct }) 
             <p className="text-xs text-slate-500 mt-0.5">
               → {item.product_nama}
               <ConfidenceBadge confidence={item.confidence} />
+              {item.product_supplier && (
+                <span className="text-slate-400 ml-1 text-[10px]">({item.product_supplier})</span>
+              )}
             </p>
           ) : (
             <p className="text-xs text-rose-500 mt-0.5 font-semibold">
@@ -189,6 +209,11 @@ function ItemCard({ item, allProducts, onUpdate, onRemove, onOverrideProduct }) 
                     <div className="min-w-0 flex-1">
                       <span className="font-semibold text-slate-700 block truncate">{p.nama}</span>
                       <span className="text-slate-400 text-[10px]">{p.kode || "N/A"} {p.merek ? `• ${p.merek}` : ""}</span>
+                      {p.supplier && (
+                        <span className={`block text-[10px] mt-0.5 ${supplierName && p.supplier?.toLowerCase() === supplierName.toLowerCase() ? "text-blue-600 font-semibold" : "text-slate-400"}`}>
+                          {p.supplier}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       {p.ukuran && (
@@ -222,6 +247,8 @@ function NotaOcrModal({
   onConfirm,
   allProducts,
   existingItems,
+  selectedSupplierId,
+  selectedSupplierName,
 }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -273,7 +300,7 @@ function NotaOcrModal({
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
     setItems([]);
-    await processImage(file, allProducts);
+    await processImage(file, allProducts, selectedSupplierName);
   };
 
   const handleUpdateItem = (id, updates) => {
@@ -294,6 +321,7 @@ function NotaOcrModal({
               ...item,
               product_id: product.id,
               product_nama: product.nama,
+              product_supplier: product.supplier || "",
               confidence: 100,
             }
           : item,
@@ -451,6 +479,14 @@ function NotaOcrModal({
             </div>
           )}
 
+          {/* Supplier Context Banner */}
+          {selectedSupplierName && (
+            <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex items-center gap-2">
+              <FiCheckCircle size={14} className="flex-shrink-0 text-blue-500" />
+              <span>Supplier: <strong>{selectedSupplierName}</strong> — pencarian diprioritaskan ke supplier ini</span>
+            </div>
+          )}
+
           {/* Results */}
           {items.length > 0 && (
             <div className="space-y-3">
@@ -485,6 +521,7 @@ function NotaOcrModal({
                   onUpdate={handleUpdateItem}
                   onRemove={handleRemoveItem}
                   onOverrideProduct={handleOverrideProduct}
+                  supplierName={selectedSupplierName}
                 />
               ))}
 
