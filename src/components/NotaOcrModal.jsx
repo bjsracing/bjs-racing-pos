@@ -10,7 +10,17 @@ import {
   FiAlertCircle,
   FiImage,
 } from "react-icons/fi";
+import { supabase } from "../supabaseClient.js";
 import { useNotaOcr } from "../hooks/useNotaOcr.js";
+
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
 
 function ConfidenceBadge({ confidence }) {
   if (confidence >= 80) {
@@ -38,34 +48,34 @@ function ItemCard({ item, allProducts, onUpdate, onRemove, onOverrideProduct }) 
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const searchTimeout = useRef(null);
+  const [searching, setSearching] = useState(false);
+  const searchSeqRef = useRef(0);
+  const debouncedSearch = useDebounce(productSearch, 300);
 
   useEffect(() => {
-    return () => {
-      if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    };
-  }, []);
+    if (!debouncedSearch || debouncedSearch.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    const seq = ++searchSeqRef.current;
+    setSearching(true);
+    supabase
+      .rpc("search_products", { search_term: debouncedSearch })
+      .then(({ data, error }) => {
+        if (seq !== searchSeqRef.current) return;
+        if (error) {
+          console.error("Ganti search error:", error);
+          setSearchResults([]);
+        } else {
+          setSearchResults((data || []).slice(0, 15));
+        }
+        setSearching(false);
+      });
+  }, [debouncedSearch]);
 
   const handleProductSearch = (term) => {
     setProductSearch(term);
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    if (!term || term.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    searchTimeout.current = setTimeout(() => {
-      const lower = term.toLowerCase();
-      const results = allProducts
-        .filter(
-          (p) =>
-            p.status === "Aktif" &&
-            (p.nama?.toLowerCase().includes(lower) ||
-              p.kode?.toLowerCase().includes(lower) ||
-              p.merek?.toLowerCase().includes(lower)),
-        )
-        .slice(0, 8);
-      setSearchResults(results);
-    }, 200);
   };
 
   const statusColor =
@@ -153,15 +163,18 @@ function ItemCard({ item, allProducts, onUpdate, onRemove, onOverrideProduct }) 
             <FiSearch className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari produk di database..."
+              placeholder="Cari kode, nama, merek..."
               value={productSearch}
               onChange={(e) => handleProductSearch(e.target.value)}
               className="w-full p-1.5 pl-7 border border-slate-300 rounded text-sm"
               autoFocus
             />
+            {searching && (
+              <FiLoader className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" size={14} />
+            )}
           </div>
           {searchResults.length > 0 && (
-            <ul className="mt-1 max-h-32 overflow-y-auto border border-slate-200 rounded bg-white">
+            <ul className="mt-1 max-h-40 overflow-y-auto border border-slate-200 rounded bg-white">
               {searchResults.map((p) => (
                 <li key={p.id}>
                   <button
@@ -171,20 +184,28 @@ function ItemCard({ item, allProducts, onUpdate, onRemove, onOverrideProduct }) 
                       setProductSearch("");
                       setSearchResults([]);
                     }}
-                    className="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 border-b last:border-b-0"
+                    className="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 border-b last:border-b-0 flex items-center justify-between gap-2"
                   >
-                    <span className="font-semibold text-slate-700">
-                      {p.nama}
-                    </span>
-                    <span className="text-slate-400 ml-1">
-                      ({p.kode || "N/A"})
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold text-slate-700 block truncate">{p.nama}</span>
+                      <span className="text-slate-400 text-[10px]">{p.kode || "N/A"} {p.merek ? `• ${p.merek}` : ""}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {p.ukuran && (
+                        <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">{p.ukuran}</span>
+                      )}
+                      {p.stok > 0 ? (
+                        <span className="text-[10px] text-emerald-600">stok:{p.stok}</span>
+                      ) : (
+                        <span className="text-[10px] text-rose-500 font-semibold">habis</span>
+                      )}
+                    </div>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          {productSearch.length >= 2 && searchResults.length === 0 && (
+          {!searching && productSearch.length >= 2 && searchResults.length === 0 && (
             <p className="text-xs text-slate-400 mt-1 text-center">
               Produk tidak ditemukan
             </p>
