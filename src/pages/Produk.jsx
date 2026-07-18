@@ -88,54 +88,60 @@ function Produk() {
     const fetchId = ++fetchIdRef.current;
     let isActive = true;
     let timeoutId;
-    const fetchProducts = async () => {
+    const runSearch = async (retried = false) => {
       setLoading(true);
       const controller = new AbortController();
       timeoutId = setTimeout(() => controller.abort(), 15000);
       const isCustomPrice = !PREDEFINED_PRICE_RANGES.includes(activeFilters.price_range);
-      try {
-        const { data, error } = await supabase.rpc("search_products", {
-          search_term: debouncedSearchTerm,
-          merek_filter: activeFilters.merek,
-          kategori_filter: activeFilters.kategori,
-          status_filter: activeFilters.status,
-          low_stock_only: showLowStockOnly,
-          supplier_filter: activeFilters.supplier,
-          ukuran_filter: activeFilters.ukuran,
-          lini_produk_filter: activeFilters.lini_produk,
-          price_range: isCustomPrice ? "semua" : activeFilters.price_range,
-        });
-        if (!isActive || fetchId !== fetchIdRef.current) return;
-        clearTimeout(timeoutId);
-        if (error) {
-          console.error("Error fetching products:", error);
-          setProducts([]);
-        } else if (data) {
-          let result = data;
-          if (isCustomPrice && activeFilters.price_range) {
-            const parts = activeFilters.price_range.split("-");
-            const min = parseInt(parts[0], 10) || 0;
-            const max = parts[1] && !parts[1].includes("+")
-              ? parseInt(parts[1], 10)
-              : Infinity;
-            result = data.filter((p) => {
-              const harga = parseFloat(p.harga_jual) || 0;
-              return harga >= min && harga <= max;
-            });
-          }
-          setProducts(result);
-        }
-        setLoading(false);
-      } catch (err) {
-        if (err.name === "AbortError") {
-          console.warn("Search request timed out, retrying on next input.");
-        } else {
-          console.error("Error fetching products:", err);
-        }
-        if (isActive && fetchId === fetchIdRef.current) setLoading(false);
+      const { data, error } = await supabase.rpc("search_products", {
+        search_term: debouncedSearchTerm,
+        merek_filter: activeFilters.merek,
+        kategori_filter: activeFilters.kategori,
+        status_filter: activeFilters.status,
+        low_stock_only: showLowStockOnly,
+        supplier_filter: activeFilters.supplier,
+        ukuran_filter: activeFilters.ukuran,
+        lini_produk_filter: activeFilters.lini_produk,
+        price_range: isCustomPrice ? "semua" : activeFilters.price_range,
+      });
+      clearTimeout(timeoutId);
+      if (!isActive || fetchId !== fetchIdRef.current) return;
+
+      // Jika token auth expired/kadaluarsa (umum setelah tab lama di-background),
+      // refresh session lalu coba lagi satu kali tanpa reload manual.
+      const isAuthError =
+        error &&
+        (error.message?.toLowerCase().includes("jwt") ||
+          error.message?.toLowerCase().includes("token") ||
+          error.message?.toLowerCase().includes("unauthorized") ||
+          error.code === "401" ||
+          error.status === 401);
+      if (isAuthError && !retried) {
+        await supabase.auth.refreshSession();
+        return runSearch(true);
       }
+
+      if (error) {
+        console.error("Error fetching products:", error);
+        setProducts([]);
+      } else if (data) {
+        let result = data;
+        if (isCustomPrice && activeFilters.price_range) {
+          const parts = activeFilters.price_range.split("-");
+          const min = parseInt(parts[0], 10) || 0;
+          const max = parts[1] && !parts[1].includes("+")
+            ? parseInt(parts[1], 10)
+            : Infinity;
+          result = data.filter((p) => {
+            const harga = parseFloat(p.harga_jual) || 0;
+            return harga >= min && harga <= max;
+          });
+        }
+        setProducts(result);
+      }
+      setLoading(false);
     };
-    fetchProducts();
+    runSearch();
     return () => {
       isActive = false;
       if (timeoutId) clearTimeout(timeoutId);
