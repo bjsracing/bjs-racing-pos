@@ -355,31 +355,11 @@ const FormPembelian = () => {
   };
 
   const handleOcrConfirm = (ocrItems) => {
-    // PERBAIKAN: Gabungkan (aggregasi) item OCR yang merujuk product_id SAMA
-    // dalam satu batch agar tidak saling menimpa dan menghilangkan item.
-    const mergedOcr = [];
-    ocrItems.forEach((ocrItem) => {
-      if (!ocrItem.product_id) return;
-      const existing = mergedOcr.find(
-        (m) => m.product_id === ocrItem.product_id,
-      );
-      if (existing) {
-        existing.kuantitas =
-          (parseFloat(existing.kuantitas) || 0) +
-          (parseFloat(ocrItem.kuantitas) || 0);
-        if (!existing.harga_beli && ocrItem.harga_beli) {
-          existing.harga_beli = ocrItem.harga_beli;
-        }
-      } else {
-        mergedOcr.push({ ...ocrItem });
-      }
-    });
-
     const updatedItems = [...orderItems];
     let addedCount = 0;
     let updatedCount = 0;
 
-    mergedOcr.forEach((ocrItem) => {
+    ocrItems.forEach((ocrItem) => {
       const matchIndex = updatedItems.findIndex((poItem) => {
         if (!poItem.nama || !ocrItem.product_nama) return false;
         if (poItem.product_id && ocrItem.product_id) {
@@ -417,9 +397,7 @@ const FormPembelian = () => {
         // PERBAIKAN: akumulasi qty, jangan menimpa (menghindari item hilang)
         updatedItems[matchIndex] = {
           ...updatedItems[matchIndex],
-          quantity_ordered:
-            (parseFloat(updatedItems[matchIndex].quantity_ordered) || 0) +
-            (parseFloat(ocrItem.kuantitas) || 0),
+          quantity_ordered: ocrItem.kuantitas,
           catatan_item: newCatatan,
         };
         updatedCount++;
@@ -430,6 +408,7 @@ const FormPembelian = () => {
         if (!foundProduct) return;
 
         updatedItems.push({
+          id: ocrItem.id || `ocr-item-${Date.now()}-${updatedItems.length}`,
           product_id: foundProduct.id,
           kode: foundProduct.kode,
           nama: foundProduct.nama,
@@ -689,7 +668,7 @@ const FormPembelian = () => {
         <div className="space-y-4">
           {orderItems.length > 0 ? (
             orderItems.map((item) => (
-              <div key={item.product_id} className="bg-slate-50 p-4 rounded-lg">
+              <div key={item.id || item.product_id} className="bg-slate-50 p-4 rounded-lg">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                   <div className="md:col-span-2">
                     <p className="font-bold text-blue-600 break-words">
