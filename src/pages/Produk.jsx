@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import {
@@ -77,6 +77,7 @@ function Produk() {
   const [isSaving, setIsSaving] = useState(false);
 
   const forceRefresh = () => setRefreshTrigger((t) => t + 1);
+  const fetchIdRef = useRef(0);
 
   const PREDEFINED_PRICE_RANGES = [
     "semua", "nol", "0-15000", "15000-25000",
@@ -84,22 +85,28 @@ function Produk() {
   ];
 
   useEffect(() => {
+    const fetchId = ++fetchIdRef.current;
     let isActive = true;
+    let timeoutId;
     const fetchProducts = async () => {
       setLoading(true);
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => controller.abort(), 15000);
       const isCustomPrice = !PREDEFINED_PRICE_RANGES.includes(activeFilters.price_range);
-      const { data, error } = await supabase.rpc("search_products", {
-        search_term: debouncedSearchTerm,
-        merek_filter: activeFilters.merek,
-        kategori_filter: activeFilters.kategori,
-        status_filter: activeFilters.status,
-        low_stock_only: showLowStockOnly,
-        supplier_filter: activeFilters.supplier,
-        ukuran_filter: activeFilters.ukuran,
-        lini_produk_filter: activeFilters.lini_produk,
-        price_range: isCustomPrice ? "semua" : activeFilters.price_range,
-      });
-      if (isActive) {
+      try {
+        const { data, error } = await supabase.rpc("search_products", {
+          search_term: debouncedSearchTerm,
+          merek_filter: activeFilters.merek,
+          kategori_filter: activeFilters.kategori,
+          status_filter: activeFilters.status,
+          low_stock_only: showLowStockOnly,
+          supplier_filter: activeFilters.supplier,
+          ukuran_filter: activeFilters.ukuran,
+          lini_produk_filter: activeFilters.lini_produk,
+          price_range: isCustomPrice ? "semua" : activeFilters.price_range,
+        });
+        if (!isActive || fetchId !== fetchIdRef.current) return;
+        clearTimeout(timeoutId);
         if (error) {
           console.error("Error fetching products:", error);
           setProducts([]);
@@ -119,13 +126,31 @@ function Produk() {
           setProducts(result);
         }
         setLoading(false);
+      } catch (err) {
+        if (err.name === "AbortError") {
+          console.warn("Search request timed out, retrying on next input.");
+        } else {
+          console.error("Error fetching products:", err);
+        }
+        if (isActive && fetchId === fetchIdRef.current) setLoading(false);
       }
     };
     fetchProducts();
     return () => {
       isActive = false;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [debouncedSearchTerm, activeFilters, showLowStockOnly, refreshTrigger]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        forceRefresh();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   useEffect(() => {
     const fetchCascadeOptions = async () => {
