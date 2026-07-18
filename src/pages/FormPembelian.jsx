@@ -355,13 +355,31 @@ const FormPembelian = () => {
   };
 
   const handleOcrConfirm = (ocrItems) => {
+    // PERBAIKAN: Gabungkan (aggregasi) item OCR yang merujuk product_id SAMA
+    // dalam satu batch agar tidak saling menimpa dan menghilangkan item.
+    const mergedOcr = [];
+    ocrItems.forEach((ocrItem) => {
+      if (!ocrItem.product_id) return;
+      const existing = mergedOcr.find(
+        (m) => m.product_id === ocrItem.product_id,
+      );
+      if (existing) {
+        existing.kuantitas =
+          (parseFloat(existing.kuantitas) || 0) +
+          (parseFloat(ocrItem.kuantitas) || 0);
+        if (!existing.harga_beli && ocrItem.harga_beli) {
+          existing.harga_beli = ocrItem.harga_beli;
+        }
+      } else {
+        mergedOcr.push({ ...ocrItem });
+      }
+    });
+
     const updatedItems = [...orderItems];
     let addedCount = 0;
     let updatedCount = 0;
 
-    ocrItems.forEach((ocrItem) => {
-      if (!ocrItem.product_id) return;
-
+    mergedOcr.forEach((ocrItem) => {
       const matchIndex = updatedItems.findIndex((poItem) => {
         if (!poItem.nama || !ocrItem.product_nama) return false;
         if (poItem.product_id && ocrItem.product_id) {
@@ -396,9 +414,12 @@ const FormPembelian = () => {
               : notaPrice;
           }
         }
+        // PERBAIKAN: akumulasi qty, jangan menimpa (menghindari item hilang)
         updatedItems[matchIndex] = {
           ...updatedItems[matchIndex],
-          quantity_ordered: ocrItem.kuantitas,
+          quantity_ordered:
+            (parseFloat(updatedItems[matchIndex].quantity_ordered) || 0) +
+            (parseFloat(ocrItem.kuantitas) || 0),
           catatan_item: newCatatan,
         };
         updatedCount++;

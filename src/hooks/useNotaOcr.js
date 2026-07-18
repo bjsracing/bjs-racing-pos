@@ -114,6 +114,9 @@ export function useNotaOcr() {
         generationConfig: {
           responseMimeType: "application/json",
           temperature: 0.1,
+          // PERBAIKAN: batasi token output besar agar model tidak memotong
+          // daftar item di tengah (penyebab 14 item -> hanya sebagian tersimpan).
+          maxOutputTokens: 8192,
         },
       });
 
@@ -128,10 +131,27 @@ export function useNotaOcr() {
       }
       const aiText = resData.candidates[0].content.parts[0].text;
       let cleaned = aiText.trim();
+
+      // PERBAIKAN: deteksi respons JSON yang terpotong (model berhenti
+      // di tengah array). Jika tidak diakhiri ']' valid, anggap terpotong.
+      const hadJsonWrapper = /```/.test(cleaned);
       const jsonMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonMatch) {
         cleaned = jsonMatch[1].trim();
       }
+      // Coba perbaiki array yang terpotong dengan menutup bracket & objek.
+      let truncated = false;
+      if (cleaned.startsWith("[")) {
+        const lastBracket = cleaned.lastIndexOf("]");
+        if (lastBracket === -1 || lastBracket < cleaned.length - 1) {
+          truncated = true;
+          // potong diobyek terakhir yang tidak selesai
+          const safe = cleaned.replace(/,\s*$/, "");
+          const objEnd = safe.lastIndexOf("}");
+          cleaned = (objEnd > -1 ? safe.slice(0, objEnd + 1) : safe) + "]";
+        }
+      }
+
       let parsed = JSON.parse(cleaned);
 
       if (!Array.isArray(parsed)) {
@@ -148,6 +168,12 @@ export function useNotaOcr() {
         harga_beli: item.harga_beli || 0,
         source: "ocr",
       }));
+
+      if (truncated) {
+        setError(
+          `Peringatan: AI memotong respons sebelum semua item terbaca (${parsed.length} item terambil). Periksa kembali & tambahkan item yang kurang, atau foto ulang nota dengan lebih jelas.`,
+        );
+      }
 
       setExtractedItems(parsed);
       setProgress("");
