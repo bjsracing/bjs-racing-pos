@@ -49,7 +49,7 @@ function geminiToOpenAIPayload(contents, generationConfig, modelOverrides) {
   if (generationConfig?.temperature != null) params.temperature = generationConfig.temperature;
   if (generationConfig?.maxOutputTokens != null) params.max_tokens = generationConfig.maxOutputTokens;
   if (!params.temperature) params.temperature = 0.3;
-  if (!params.max_tokens) params.max_tokens = 2048;
+  if (!params.max_tokens) params.max_tokens = 8192;
 
   return params;
 }

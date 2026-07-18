@@ -3,21 +3,43 @@ import imageCompression from "browser-image-compression";
 import { callGeminiWithFallback } from "../lib/geminiProxy.js";
 
 function buildOcrPrompt(products, supplierName) {
-  const activeProducts = products.filter((p) => p.status === "Aktif");
-  if (activeProducts.length > 500) {
+  // PERBAIKAN: kecilkan daftar produk secara drastis agar AI tidak
+  // kehabisan token output (penyebab respons terpotong -> item hilang).
+  // 1) Prioritaskan produk milik supplier nota ini.
+  // 2) Sisanya ambil produk aktif lain sebagai cadangan.
+  // 3) Batasi total agar prompt tidak memakan context window.
+  const MAX_PRODUCTS = 120;
+  let selected = [];
+  if (supplierName) {
+    const bySupplier = products.filter(
+      (p) =>
+        p.supplier &&
+        p.supplier.toLowerCase().trim() === supplierName.toLowerCase().trim(),
+    );
+    selected = bySupplier.slice(0, MAX_PRODUCTS);
+  }
+  if (selected.length < MAX_PRODUCTS) {
+    const remaining = products
+      .filter((p) => p.status === "Aktif" || !p.status)
+      .filter((p) => !selected.includes(p));
+    selected = selected.concat(remaining.slice(0, MAX_PRODUCTS - selected.length));
+  }
+
+  const productList = selected.map((p) => ({
+    id: p.id,
+    kode: p.kode,
+    nama: p.nama,
+    merek: p.merek,
+    kategori: p.kategori,
+    ukuran: p.ukuran || "",
+    supplier: p.supplier || "",
+  }));
+
+  if (productList.length >= MAX_PRODUCTS) {
     console.warn(
-      `Nota OCR: ${activeProducts.length} produk aktif — prompt mungkin melebihi batas token.`,
+      `Nota OCR: daftar produk dibatasi ${MAX_PRODUCTS} (dari ${products.length}) untuk menghindari pemotongan respons AI.`,
     );
   }
-  const productList = activeProducts.slice(0, 500).map((p) => ({
-      id: p.id,
-      kode: p.kode,
-      nama: p.nama,
-      merek: p.merek,
-      kategori: p.kategori,
-      ukuran: p.ukuran || "",
-      supplier: p.supplier || "",
-    }));
 
   const supplierContext = supplierName
     ? `\nSUPPLIER NOTA INI: ${supplierName}\nProduk dari supplier ini harus DIPRIORITASKAN. Jika ada beberapa kemungkinan cocok, pilih yang supplier-nya sama dengan supplier nota.\n`
@@ -26,36 +48,24 @@ function buildOcrPrompt(products, supplierName) {
   return `Anda adalah AI assistant toko sparepart motor "BJS Racing".
 
 TUGAS ANDA (2 LANGKAH SEKALIGUS):
-1. Baca/gambar nota pembelian fisik dari supplier. Ekstrak SEMUA item barang: nama barang, kuantitas, dan harga beli satuan.
-2. Cocokkan setiap item hasil ekstrak dengan daftar produk database toko di bawah ini.
+1. Baca nota pembelian fisik dari supplier. Ekstrak SEMUA item: nama barang, kuantitas, harga beli satuan. JANGAN skip SATUPUN item meskipun banyak.
+2. Cocokkan tiap item dengan daftar produk database di bawah.
 ${supplierContext}
-DATABASE PRODUK TOKO:
+DATABASE PRODUK TOKO (${productList.length} produk):
 ${JSON.stringify(productList)}
 
 ATURAN PENTING:
-- Nama produk di nota supplier SERINGKALI BERBEDA dengan nama di database (singkatan, urutan kata, dll)
-- Gunakan KONTEKS merek, kategori, ukuran, dan tipe motor untuk melakukan pencocokan
-- Contoh: "SHELL HX7 5W30" = "Oli Shell Helix HX7 5W-30 1L", "KAMPAS REM BX VARIO" = "Kampas Rem Bendix Vario 125"
-- Jika YAKIN cocok: isi product_id dengan id produk dari database, confidence > 80
-- Jika RAGU: isi product_id dengan id produk terdekat, confidence 60-80
-- Jika TIDAK BISA cocokkan: product_id = null, confidence < 60
-- Jika ada item yang tidak terbaca dengan jelas, tetap ekstrak sebaik mungkin
-- Harga beli adalah harga yang tertera di nota (bukan harga jual)
-- Jika harga tidak tertera di nota, set harga_beli = 0
+- Nama di nota SERING BERBEDA dengan database (singkatan, urutan kata). Gunakan KONTEKS merek, kategori, ukuran.
+- Jika YAKIN cocok: product_id = id database, confidence > 80
+- Jika RAGU: product_id = id terdekat, confidence 60-80
+- Jika TIDAK BISA cocok: product_id = null, confidence < 60
+- Ekstrak semua item meskipung ada yang tidak terbaca jelas.
+- harga_beli = harga di nota (bukan harga jual). Jika tak ada, 0.
 
-FORMAT OUTPUT JSON (array objek murni, tanpa markdown, tanpa penjelasan):
-[
-  {
-    "ocr_nama": "nama barang seperti tertulis di nota",
-    "product_id": "uuid produk database atau null",
-    "product_nama": "nama produk di database yang cocok atau null",
-    "confidence": 85,
-    "kuantitas": 3,
-    "harga_beli": 175000
-  }
-]
+OUTPUT: HANYA JSON array murni, tanpa markdown/teks. Setiap objek ringkas:
+[{"ocr_nama":"...","product_id":"uuid atau null","product_nama":"... atau null","confidence":85,"kuantitas":3,"harga_beli":175000}]
 
-PENTING: Output HARUS berupa JSON array murni. Jangan tambahkan teks penjelasan, comment, atau markdown wrapper.`;
+PENTING: Output HARUS JSON array murni. Jangan tambah teks/comment/markdown.`;
 }
 
 function fileToBase64(file) {
@@ -79,23 +89,15 @@ export function useNotaOcr() {
   const processImage = useCallback(async (file, allProducts, supplierName) => {
     if (!file) return [];
 
-    setIsProcessing(true);
-    setError(null);
-    setExtractedItems([]);
-    setProgress("Mengkompresi gambar...");
-
-    try {
+    const extractOnce = async (extraInstruction = "") => {
       const compressedFile = await imageCompression(file, {
         maxSizeMB: 1,
         maxWidthOrHeight: 1920,
         useWebWorker: true,
       });
-
-      setProgress("Membaca nota & mencocokkan produk...");
       const base64Data = await fileToBase64(compressedFile);
-
       const mimeType = compressedFile.type || "image/jpeg";
-      const prompt = buildOcrPrompt(allProducts, supplierName);
+      const prompt = buildOcrPrompt(allProducts, supplierName) + extraInstruction;
 
       const resData = await callGeminiWithFallback({
         contents: [
@@ -114,11 +116,16 @@ export function useNotaOcr() {
         generationConfig: {
           responseMimeType: "application/json",
           temperature: 0.1,
-          // PERBAIKAN: batasi token output besar agar model tidak memotong
-          // daftar item di tengah (penyebab 14 item -> hanya sebagian tersimpan).
           maxOutputTokens: 8192,
         },
       });
+
+      console.log(
+        "[OCR DEBUG] provider =",
+        resData._provider,
+        "| model =",
+        resData._model,
+      );
 
       if (
         !resData.candidates ||
@@ -132,52 +139,85 @@ export function useNotaOcr() {
       const aiText = resData.candidates[0].content.parts[0].text;
       let cleaned = aiText.trim();
 
-      // PERBAIKAN: deteksi respons JSON yang terpotong (model berhenti
-      // di tengah array). Jika tidak diakhiri ']' valid, anggap terpotong.
-      const hadJsonWrapper = /```/.test(cleaned);
       const jsonMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonMatch) {
         cleaned = jsonMatch[1].trim();
       }
-      // Coba perbaiki array yang terpotong dengan menutup bracket & objek.
+
       let truncated = false;
       if (cleaned.startsWith("[")) {
         const lastBracket = cleaned.lastIndexOf("]");
         if (lastBracket === -1 || lastBracket < cleaned.length - 1) {
           truncated = true;
-          // potong diobyek terakhir yang tidak selesai
           const safe = cleaned.replace(/,\s*$/, "");
           const objEnd = safe.lastIndexOf("}");
           cleaned = (objEnd > -1 ? safe.slice(0, objEnd + 1) : safe) + "]";
         }
       }
 
-      let parsed = JSON.parse(cleaned);
-
+      const parsed = JSON.parse(cleaned);
       if (!Array.isArray(parsed)) {
         throw new Error("Format respon AI tidak valid (bukan array).");
       }
+      return { parsed, truncated };
+    };
 
-      parsed = parsed.map((item, index) => ({
-        id: `ocr-${Date.now()}-${index}`,
-        ocr_nama: item.ocr_nama || "",
-        product_id: item.product_id || null,
-        product_nama: item.product_nama || null,
-        confidence: item.confidence || 0,
-        kuantitas: item.kuantitas || 1,
-        harga_beli: item.harga_beli || 0,
-        source: "ocr",
-      }));
+    const toItem = (item, index) => ({
+      id: `ocr-${Date.now()}-${index}`,
+      ocr_nama: item.ocr_nama || "",
+      product_id: item.product_id || null,
+      product_nama: item.product_nama || null,
+      confidence: item.confidence || 0,
+      kuantitas: item.kuantitas || 1,
+      harga_beli: item.harga_beli || 0,
+      source: "ocr",
+    });
 
-      if (truncated) {
-        setError(
-          `Peringatan: AI memotong respons sebelum semua item terbaca (${parsed.length} item terambil). Periksa kembali & tambahkan item yang kurang, atau foto ulang nota dengan lebih jelas.`,
+    setIsProcessing(true);
+    setError(null);
+    setExtractedItems([]);
+    setProgress("Mengkompresi gambar...");
+
+    try {
+      setProgress("Membaca nota & mencocokkan produk...");
+      const first = await extractOnce();
+      let allItems = first.parsed.map((it, i) => toItem(it, i));
+
+      // RETRY: jika AI memotong respons, minta lanjutkan dari item terakhir.
+      let attempt = 1;
+      const MAX_ATTEMPTS = 4;
+      while (first.truncated && attempt < MAX_ATTEMPTS) {
+        attempt++;
+        setProgress(`Melanjutkan ekstraksi (percobaan ${attempt})...`);
+        const already = allItems.length;
+        const cont = await extractOnce(
+          `\n\nPENTING: Respons SEBELUMNYA TERPUTUS pada item ke-${already}. LANJUTKAN dan berikan HANYA item ke-${already + 1} dan seterusnya sampai habis, dalam format JSON array yang SAMA. JANGAN ulang item sebelumnya.`,
         );
+        const more = cont.parsed.map((it, i) => toItem(it, already + i));
+        // gabungkan, hindari duplikat berdasarkan ocr_nama + product_id
+        const seen = new Set(allItems.map((x) => `${x.ocr_nama}|${x.product_id}`));
+        more.forEach((m) => {
+          const key = `${m.ocr_nama}|${m.product_id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            allItems.push(m);
+          }
+        });
+        if (!cont.truncated) break;
       }
 
-      setExtractedItems(parsed);
+      const truncatedNow = first.truncated && attempt >= MAX_ATTEMPTS;
+      if (truncatedNow) {
+        setError(
+          `Peringatan: AI memotong respons (${allItems.length} item terambil dari beberapa percobaan). Periksa kembali & tambahkan item yang kurang, atau foto ulang nota dengan lebih jelas.`,
+        );
+      } else if (allItems.length === 0) {
+        setError("AI tidak mengembalikan item apa pun. Coba foto ulang nota.");
+      }
+
+      setExtractedItems(allItems);
       setProgress("");
-      return parsed;
+      return allItems;
     } catch (err) {
       console.error("Nota OCR error:", err);
       setError(err.message || "Gagal memproses gambar nota.");

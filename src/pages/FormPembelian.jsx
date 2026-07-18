@@ -354,12 +354,16 @@ const FormPembelian = () => {
     }
   };
 
-  const handleOcrConfirm = (ocrItems) => {
+  const handleOcrConfirm = async (ocrItems) => {
+    console.log("[OCR DEBUG] handleOcrConfirm called with ocrItems.length =", ocrItems?.length);
+    console.log("[OCR DEBUG] ocrItems product_ids:", (ocrItems||[]).map(i => ({id: i.id, product_id: i.product_id, nama: i.ocr_nama})));
+    console.log("[OCR DEBUG] existing orderItems.length =", orderItems?.length);
     const updatedItems = [...orderItems];
     let addedCount = 0;
     let updatedCount = 0;
 
-    ocrItems.forEach((ocrItem) => {
+    for (const ocrItem of ocrItems) {
+      console.log("[OCR DEBUG] processing ocrItem:", ocrItem.id, "product_id:", ocrItem.product_id, "product_nama:", ocrItem.product_nama, "has product_id:", !!ocrItem.product_id);
       const matchIndex = updatedItems.findIndex((poItem) => {
         if (!poItem.nama || !ocrItem.product_nama) return false;
         if (poItem.product_id && ocrItem.product_id) {
@@ -402,10 +406,33 @@ const FormPembelian = () => {
         };
         updatedCount++;
       } else {
-        const foundProduct = allProducts.find(
+        let foundProduct = allProducts.find(
           (p) => p.id === ocrItem.product_id,
         );
-        if (!foundProduct) return;
+        if (!foundProduct) {
+          // PERBAIKAN: jangan buang item. Coba fetch langsung dari DB.
+          console.log("[OCR DEBUG] -> product_id NOT found in allProducts, FETCH from DB:", ocrItem.product_id, "ocr_nama:", ocrItem.ocr_nama);
+          try {
+            const { data: fetched, error: fetchErr } = await supabase
+              .from("products")
+              .select("*")
+              .eq("id", ocrItem.product_id)
+              .single();
+            if (!fetchErr && fetched) {
+              foundProduct = fetched;
+              // simpan ke allProducts agar lookup berikutnya cepat
+              setAllProducts((prev) =>
+                prev.some((x) => x.id === fetched.id) ? prev : [...prev, fetched],
+              );
+            }
+          } catch (e) {
+            console.error("[OCR DEBUG] fetch product error", e);
+          }
+        }
+        if (!foundProduct) {
+          console.log("[OCR DEBUG] -> product_id tetap NOT found even after DB fetch, DROPPED:", ocrItem.product_id);
+          continue;
+        }
 
         updatedItems.push({
           id: ocrItem.id || `ocr-item-${Date.now()}-${updatedItems.length}`,
@@ -427,18 +454,19 @@ const FormPembelian = () => {
         });
         addedCount++;
       }
-    });
+    }
 
     setOrderItems(updatedItems);
     setIsOcrModalOpen(false);
 
+    console.log("[OCR DEBUG] FINAL: ocrItems in =", ocrItems?.length, "| existing =", orderItems?.length, "| added =", addedCount, "| updated =", updatedCount, "| final orderItems =", updatedItems.length);
     const messages = [];
     if (updatedCount > 0) messages.push(`${updatedCount} item diupdate`);
     if (addedCount > 0) messages.push(`${addedCount} item baru ditambahkan`);
     if (messages.length === 0) {
       alert("Tidak ada item baru yang ditambahkan dari nota.");
     } else {
-      alert(`Berhasil! ${messages.join(", ")}.`);
+      alert(`Berhasil! ${messages.join(", ")}. Total item pesanan sekarang: ${updatedItems.length}.`);
     }
   };
 
