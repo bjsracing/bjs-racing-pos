@@ -5,7 +5,7 @@ Daftar perbaikan kartu Dashboard agar lebih profesional dan informatif.
 ---
 
 ## 1. Tren Mingguan → Mini Bar SVG + Arrow Indicator
-**Status:** In Progress
+**Status:** Done
 
 Ganti tampilan teks statis jadi mini bar chart SVG 2 bar (Minggu ini vs Minggu lalu) dengan arrow animasi.
 
@@ -18,7 +18,7 @@ Ganti tampilan teks statis jadi mini bar chart SVG 2 bar (Minggu ini vs Minggu l
 ---
 
 ## 2. Penjualan & Keuntungan → Trend Mini
-**Status:** Pending
+**Status:** Done
 
 Tambah arrow indicator hijau/merah di bawah angka Rp untuk kartu "Penjualan" dan "Keuntungan" di ROW 1.
 

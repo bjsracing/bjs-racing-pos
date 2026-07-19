@@ -68,6 +68,8 @@ const MetricCard = ({
   isLink = false,
   to = "#",
   state = {},
+  trendChange = null,
+  trendLabel = "vs minggu lalu",
 }) => {
   const content = (
     <div
@@ -76,6 +78,15 @@ const MetricCard = ({
       <div className={`p-4 rounded-full text-white mb-3 ${color}`}>{icon}</div>
       <p className="text-sm text-slate-500 font-medium">{title}</p>
       <p className="text-2xl font-bold">{value}</p>
+      {trendChange !== null && trendChange !== undefined && (
+        <div className={`flex items-center gap-1 mt-1.5 text-xs font-semibold ${
+          trendChange >= 0 ? "text-green-600" : "text-red-500"
+        }`}>
+          {trendChange >= 0 ? <FaArrowUp size={10} /> : <FaArrowDown size={10} />}
+          <span>{trendChange >= 0 ? "+" : ""}{trendChange}%</span>
+          <span className="text-slate-400 font-normal">{trendLabel}</span>
+        </div>
+      )}
     </div>
   );
   return isLink ? (
@@ -151,6 +162,9 @@ function Dashboard() {
     thisWeek: 0,
     lastWeek: 0,
     change: 0,
+    thisWeekProfit: 0,
+    lastWeekProfit: 0,
+    profitChange: 0,
   });
 
   // State untuk filter tanggal
@@ -476,10 +490,18 @@ function Dashboard() {
       const weeklyChange = lastWeekTotal > 0
         ? Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 1000) / 10
         : thisWeekTotal > 0 ? 100 : 0;
+      const thisWeekProfit = thisWeekMetricsRes.data?.[0]?.profit_value || 0;
+      const lastWeekProfit = lastWeekMetricsRes.data?.[0]?.profit_value || 0;
+      const profitChange = lastWeekProfit > 0
+        ? Math.round(((thisWeekProfit - lastWeekProfit) / lastWeekProfit) * 1000) / 10
+        : thisWeekProfit > 0 ? 100 : 0;
       setWeeklyTrend({
         thisWeek: thisWeekTotal,
         lastWeek: lastWeekTotal,
         change: weeklyChange,
+        thisWeekProfit,
+        lastWeekProfit,
+        profitChange,
       });
 
       // --- 6. Penjualan bulan lalu (untuk trend kartu Target) ---
@@ -600,12 +622,14 @@ function Dashboard() {
           title="Penjualan"
           value={`Rp ${new Intl.NumberFormat("id-ID").format(metrics.salesValue)}`}
           color="bg-green-500"
+          trendChange={weeklyTrend.lastWeek > 0 ? weeklyTrend.change : null}
         />
         <MetricCard
           icon={<FaMoneyBillWave size={24} />}
           title="Keuntungan"
           value={`Rp ${new Intl.NumberFormat("id-ID").format(metrics.profitValue)}`}
           color="bg-teal-500"
+          trendChange={weeklyTrend.lastWeekProfit > 0 ? weeklyTrend.profitChange : null}
         />
         <MetricCard
           icon={<FaReceipt size={24} />}
