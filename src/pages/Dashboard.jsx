@@ -1325,33 +1325,45 @@ function Dashboard() {
               </h2>
             </div>
             {topCustomers.length > 0 ? (
-              <ul className="space-y-3">
+              <ul className="space-y-1">
                 {topCustomers.map((customer, index) => {
                   const medals = ["🥇", "🥈", "🥉"];
+                  const topTotal = topCustomers[0]?.total_transaksi || 1;
+                  const barPct = Math.round((customer.total_transaksi / topTotal) * 100);
                   return (
                     <li
                       key={customer.nama_pelanggan}
-                      className="flex items-center justify-between text-sm border-b pb-2 last:border-b-0"
+                      className="rounded-lg px-3 py-2.5 -mx-1 transition-all duration-200 hover:bg-slate-50 hover:shadow-sm cursor-default"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">
-                          {index < 3 ? medals[index] : `#${index + 1}`}
-                        </span>
-                        <div>
-                          <p className="font-semibold">
-                            {customer.nama_pelanggan}
-                          </p>
-                          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                            {customer.tingkatan}
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg w-7 text-center">
+                            {index < 3 ? medals[index] : `#${index + 1}`}
                           </span>
+                          <div>
+                            <p className="font-semibold text-sm text-slate-800">
+                              {customer.nama_pelanggan}
+                            </p>
+                            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">
+                              {customer.tingkatan}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="font-semibold text-green-600 text-sm">
+                          Rp{" "}
+                          {new Intl.NumberFormat("id-ID").format(
+                            customer.total_transaksi,
+                          )}
+                        </p>
+                      </div>
+                      <div className="ml-9">
+                        <div className="w-full bg-slate-100 rounded-full h-1.5">
+                          <div
+                            className="h-1.5 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
+                            style={{ width: `${barPct}%` }}
+                          />
                         </div>
                       </div>
-                      <p className="font-semibold text-green-600">
-                        Rp{" "}
-                        {new Intl.NumberFormat("id-ID").format(
-                          customer.total_transaksi,
-                        )}
-                      </p>
                     </li>
                   );
                 })}

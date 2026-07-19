@@ -64,7 +64,7 @@ Ganti Pie chart jadi Doughnut (hole in center = total sales).
 ---
 
 ## 6. Pelanggan Terbaik → Mini Bar + Click-through
-**Status:** Pending
+**Status:** Done
 
 Tambah mini progress bar di bawah nama pelanggan (proporsi dari top 1).
 
