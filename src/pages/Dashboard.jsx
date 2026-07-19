@@ -30,6 +30,8 @@ import {
   FaPencilAlt,
   FaCheck,
   FaTimes,
+  FaArrowUp,
+  FaArrowDown,
 } from "react-icons/fa";
 import { updateAiConfig, getUserRole } from "../config/aiConfig.js";
 import DatePicker, { registerLocale } from "react-datepicker";
@@ -885,35 +887,71 @@ function Dashboard() {
         </div>
 
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">Tren Mingguan</h2>
-          <p className="text-sm text-slate-500 mb-4">
+          <h2 className="text-lg font-semibold mb-1">Tren Mingguan</h2>
+          <p className="text-xs text-slate-400 mb-4">
             Minggu ini vs minggu lalu
           </p>
-          <div className="flex flex-col items-center justify-center h-64">
-            <p className="text-4xl font-bold">
-              Rp{" "}
-              {new Intl.NumberFormat("id-ID").format(
-                Math.round(weeklyTrend.thisWeek),
-              )}
-            </p>
-            <p className="text-sm text-slate-500 mt-1">Minggu ini</p>
-            <div className="mt-4 flex items-center gap-2">
-              <span
-                className={`text-lg font-bold ${
-                  weeklyTrend.change >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {weeklyTrend.change >= 0 ? "+" : ""}
-                {weeklyTrend.change}%
-              </span>
-              <span className="text-slate-400 text-sm">vs minggu lalu</span>
-            </div>
-            <p className="text-xs text-slate-400 mt-4">
-              Minggu lalu: Rp{" "}
-              {new Intl.NumberFormat("id-ID").format(
-                Math.round(weeklyTrend.lastWeek),
-              )}
-            </p>
+          <div className="flex flex-col justify-center h-56">
+            {(() => {
+              const thisWeek = Math.round(weeklyTrend.thisWeek);
+              const lastWeek = Math.round(weeklyTrend.lastWeek);
+              const maxVal = Math.max(thisWeek, lastWeek, 1);
+              const barWidth = (val) => Math.max((val / maxVal) * 100, 2);
+              return (
+                <>
+                  {/* Bar Minggu Ini */}
+                  <div className="mb-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-medium text-slate-600">Minggu ini</span>
+                      <span className="text-xs font-bold text-slate-800">
+                        Rp {new Intl.NumberFormat("id-ID").format(thisWeek)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-5 overflow-hidden">
+                      <div
+                        className="h-5 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-700 ease-out"
+                        style={{ width: `${barWidth(thisWeek)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bar Minggu Lalu */}
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-medium text-slate-400">Minggu lalu</span>
+                      <span className="text-xs text-slate-400">
+                        Rp {new Intl.NumberFormat("id-ID").format(lastWeek)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-5 overflow-hidden">
+                      <div
+                        className="h-5 rounded-full bg-gradient-to-r from-slate-300 to-slate-400 transition-all duration-700 ease-out"
+                        style={{ width: `${barWidth(lastWeek)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Arrow + Persentase */}
+                  <div className="flex items-center justify-center gap-2">
+                    {weeklyTrend.change !== 0 && (
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm font-bold ${
+                        weeklyTrend.change >= 0
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}>
+                        {weeklyTrend.change >= 0 ? (
+                          <FaArrowUp size={12} className="animate-bounce" />
+                        ) : (
+                          <FaArrowDown size={12} className="animate-bounce" />
+                        )}
+                        {weeklyTrend.change >= 0 ? "+" : ""}{weeklyTrend.change}%
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-400">vs minggu lalu</span>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
