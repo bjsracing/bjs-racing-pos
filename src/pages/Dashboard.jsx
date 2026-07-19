@@ -1207,20 +1207,32 @@ function Dashboard() {
         <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="bg-white p-4 md:p-6 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4">Aktivitas Terkini</h2>
-            <ul className="space-y-4">
+            <ul className="space-y-2">
               {recentActivities && recentActivities.length > 0 ? (
                 recentActivities.map((activity) => {
                   if (!activity || !activity.id) return null;
+                  const itemCount = Array.isArray(activity.items) ? activity.items.length : 0;
                   return (
                     <li
                       key={activity.id}
-                      className="text-sm border-b pb-3 last:border-b-0"
+                      className="text-sm border-b border-slate-100 pb-3 last:border-b-0 rounded-lg px-3 py-2.5 -mx-1 transition-all duration-200 hover:bg-slate-50 hover:shadow-sm cursor-default"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="font-semibold">
-                          {activity.customers?.nama_pelanggan ||
-                            "Pelanggan Umum"}
-                        </p>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-slate-800">
+                            {activity.customers?.nama_pelanggan ||
+                              "Pelanggan Umum"}
+                          </p>
+                          {itemCount > 0 && (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                              itemCount >= 5
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}>
+                              {itemCount} item
+                            </span>
+                          )}
+                        </div>
                         <p className="text-slate-400 text-xs">
                           {new Date(activity.created_at).toLocaleTimeString(
                             "id-ID",
@@ -1229,7 +1241,7 @@ function Dashboard() {
                         </p>
                       </div>
                       {Array.isArray(activity.items) && (
-                        <ul className="pl-2 space-y-1">
+                        <ul className="pl-2 space-y-0.5">
                           {activity.items.slice(0, 2).map((item, index) => {
                             if (!item) return null;
                             const key =
@@ -1239,8 +1251,8 @@ function Dashboard() {
                             const name = item.nama || `(Item Grosir)`;
                             const brand = item.merek || "";
                             return (
-                              <li key={key} className="text-xs text-slate-600">
-                                {quantity}x {name} {brand && `(${brand})`}
+                              <li key={key} className="text-xs text-slate-500">
+                                {quantity}x {name} {brand && <span className="text-slate-400">({brand})</span>}
                               </li>
                             );
                           })}
@@ -1254,7 +1266,7 @@ function Dashboard() {
                           )}
                         </ul>
                       )}
-                      <p className="text-right font-semibold mt-1">
+                      <p className="text-right font-bold text-sm mt-1.5 text-slate-800">
                         Rp{" "}
                         {new Intl.NumberFormat("id-ID").format(
                           activity.total_akhir,

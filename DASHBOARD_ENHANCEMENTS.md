@@ -41,7 +41,7 @@ Tambah skeleton placeholder (animasi shimmer) saat data belum load.
 ---
 
 ## 4. Aktivitas Terkini → Hover States + Badge
-**Status:** Pending
+**Status:** Done
 
 Perbaiki daftar "Aktivitas Terkini" di ROW 5 (kanan).
 
