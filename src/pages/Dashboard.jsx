@@ -905,54 +905,70 @@ function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-2">Penjualan per Merek</h2>
-          <div className="mt-4 h-72 flex justify-center items-center relative">
+          <div className="mt-4 h-72 flex justify-center items-center">
             {brandSalesChartData.labels.length > 0 ? (
-              <>
-                <Doughnut
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: "65%",
-                    plugins: {
-                      legend: {
-                        position: "right",
-                        labels: {
-                          boxWidth: 12,
-                          font: { size: 10 },
-                          generateLabels: (chart) => {
-                            const data = chart.data;
-                            if (!data.labels || !data.datasets.length) return [];
-                            const dataset = data.datasets[0];
-                            return data.labels.map((label, i) => ({
-                              text: `${i + 1}. ${label}`,
-                              fillStyle: dataset.backgroundColor?.[i] || "#ccc",
-                              hidden: false,
-                              index: i,
-                            }));
-                          },
-                        },
-                      },
-                      tooltip: {
-                        callbacks: {
-                          label: (ctx) => {
-                            const val = ctx.parsed;
-                            return ` ${ctx.label}: Rp ${new Intl.NumberFormat("id-ID").format(val)}`;
-                          },
+              <Doughnut
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  cutout: "65%",
+                  plugins: {
+                    legend: {
+                      position: "right",
+                      labels: {
+                        boxWidth: 12,
+                        font: { size: 10 },
+                        lineWidth: 0,
+                        generateLabels: (chart) => {
+                          const data = chart.data;
+                          if (!data.labels || !data.datasets.length) return [];
+                          const dataset = data.datasets[0];
+                          return data.labels.map((label, i) => ({
+                            text: `${i + 1}. ${label}`,
+                            fillStyle: dataset.backgroundColor?.[i] || "#ccc",
+                            strokeStyle: "transparent",
+                            hidden: false,
+                            index: i,
+                          }));
                         },
                       },
                     },
-                  }}
-                  data={brandSalesChartData}
-                />
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <p className="text-[10px] text-slate-400 font-medium">Total</p>
-                  <p className="text-sm font-bold text-slate-700">
-                    Rp {new Intl.NumberFormat("id-ID").format(
-                      brandSalesChartData.datasets[0]?.data?.reduce((a, b) => a + b, 0) || 0
-                    )}
-                  </p>
-                </div>
-              </>
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => {
+                          const val = ctx.parsed;
+                          return ` ${ctx.label}: Rp ${new Intl.NumberFormat("id-ID").format(val)}`;
+                        },
+                      },
+                    },
+                    centerText: false,
+                  },
+                }}
+                data={brandSalesChartData}
+                plugins={[{
+                  id: "centerText",
+                  afterDraw(chart) {
+                    const { ctx, width, height } = chart;
+                    const total = metrics.salesValue;
+                    ctx.save();
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.font = "bold 11px sans-serif";
+                    ctx.fillStyle = "#475569";
+                    ctx.fillText("Total", width / 2, height / 2 - 8);
+                    ctx.font = "bold 13px sans-serif";
+                    ctx.fillStyle = "#1e293b";
+                    const txt = `Rp ${new Intl.NumberFormat("id-ID").format(total)}`;
+                    const txtWidth = ctx.measureText(txt).width;
+                    const maxWidth = (chart.chartArea?.width || width) * 0.5;
+                    if (txtWidth > maxWidth) {
+                      ctx.font = "bold 10px sans-serif";
+                    }
+                    ctx.fillText(txt, width / 2, height / 2 + 8);
+                    ctx.restore();
+                  },
+                }]}
+              />
             ) : (
               <p className="text-slate-400 text-sm">Tidak ada data</p>
             )}
