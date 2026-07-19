@@ -13,6 +13,8 @@ function TransactionHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const ITEMS_PER_PAGE = 15;
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // <-- 1. TAMBAHKAN STATE UNTUK MENYIMPAN KONDISI FILTER SAAT INI
   const [filters, setFilters] = useState({
@@ -82,6 +84,67 @@ function TransactionHistory() {
     setFilters(newFilters);
   }, []);
 
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (transactions.length > 0 && transactions.every((t) => prev.has(t.id))) {
+        return new Set();
+      }
+      return new Set(transactions.map((t) => t.id));
+    });
+  }, [transactions]);
+
+  const handleDelete = useCallback(
+    async (ids) => {
+      if (
+        !window.confirm(
+          "Yakin hapus " +
+            ids.length +
+            " transaksi? Stok barang akan dikembalikan.",
+        )
+      )
+        return;
+
+      setIsDeleting(true);
+      try {
+        const errors = [];
+        for (const id of ids) {
+          const { error } = await supabase.rpc(
+            "delete_transaction_and_restore_stock",
+            { p_transaction_id: id },
+          );
+          if (error) errors.push(error);
+        }
+
+        if (errors.length > 0) {
+          alert(
+            "Gagal menghapus beberapa transaksi: " + errors[0].message,
+          );
+        } else {
+          setSelectedIds(new Set());
+          await getTransactions(filters, currentPage);
+          await fetchSummaryData();
+        }
+      } catch (err) {
+        alert("Gagal menghapus transaksi: " + err.message);
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [filters, currentPage, getTransactions, fetchSummaryData],
+  );
+
   return (
     <div>
       <TransactionDetailModal
@@ -116,10 +179,36 @@ function TransactionHistory() {
 
       <TransactionFilter onFilterChange={handleFilterChange} />
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-4 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <span className="text-sm font-semibold text-red-700">
+            {selectedIds.size} dipilih
+          </span>
+          <button
+            onClick={() => handleDelete(Array.from(selectedIds))}
+            disabled={isDeleting}
+            className="bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded disabled:opacity-50"
+          >
+            {isDeleting ? "Menghapus..." : "Hapus Terpilih"}
+          </button>
+        </div>
+      )}
+
       <div className="bg-white shadow-md rounded-lg overflow-x-auto">
         <table className="min-w-full leading-normal">
           <thead className="bg-slate-200">
             <tr>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase w-12">
+                <input
+                  type="checkbox"
+                  aria-label="Pilih Semua"
+                  checked={
+                    transactions.length > 0 &&
+                    transactions.every((t) => selectedIds.has(t.id))
+                  }
+                  onChange={toggleSelectAll}
+                />
+              </th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
                 Tanggal & Waktu
               </th>
@@ -140,19 +229,26 @@ function TransactionHistory() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="5" className="text-center py-10">
+                <td colSpan="6" className="text-center py-10">
                   Memuat data...
                 </td>
               </tr>
             ) : transactions.length === 0 ? (
               <tr>
-                <td colSpan="5" className="text-center py-10 text-slate-500">
+                <td colSpan="6" className="text-center py-10 text-slate-500">
                   Tidak ada transaksi yang cocok.
                 </td>
               </tr>
             ) : (
               transactions.map((trx) => (
                 <tr key={trx.id} className="hover:bg-slate-50">
+                  <td className="px-3 py-4 border-b border-slate-200 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(trx.id)}
+                      onChange={() => toggleSelect(trx.id)}
+                    />
+                  </td>
                   <td className="px-5 py-4 border-b border-slate-200 text-sm">
                     {new Date(trx.created_at).toLocaleString("id-ID", {
                       dateStyle: "long",
@@ -178,6 +274,14 @@ function TransactionHistory() {
                       className="text-blue-500 hover:underline"
                     >
                       Lihat Detail
+                    </button>
+                    <span className="mx-1 text-slate-300">|</span>
+                    <button
+                      onClick={() => handleDelete([trx.id])}
+                      disabled={isDeleting}
+                      className="text-red-500 hover:underline disabled:opacity-50"
+                    >
+                      {isDeleting ? "Menghapus..." : "Hapus"}
                     </button>
                   </td>
                 </tr>
