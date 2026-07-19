@@ -357,6 +357,7 @@ export default function ManajemenModelAI() {
             { key: "wa_draft_enabled", label: "AI WhatsApp Draft", desc: "Draft pesan WhatsApp otomatis" },
             { key: "ocr_enabled", label: "AI OCR Nota", desc: "Scan nota pembelian via gambar" },
             { key: "voice_enabled", label: "Voice Input", desc: "Input suara (Bahasa Indonesia)" },
+            { key: "advisor_enabled", label: "AI Business Advisor", desc: "Asisten CFO di Dashboard" },
           ].map(({ key, label, desc }) => (
             <div
               key={key}

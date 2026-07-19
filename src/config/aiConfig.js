@@ -11,6 +11,7 @@ export const AI_CONFIG_DEFAULTS = {
   wa_draft_enabled: "true",
   ocr_enabled: "true",
   voice_enabled: "true",
+  advisor_enabled: "true",
 };
 
 export const PROVIDER_OPTIONS = [

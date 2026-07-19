@@ -33,8 +33,9 @@ import {
   FaArrowUp,
   FaArrowDown,
 } from "react-icons/fa";
-import { updateAiConfig, getUserRole } from "../config/aiConfig.js";
+import { updateAiConfig, getUserRole, fetchAiConfig } from "../config/aiConfig.js";
 import EnhancedCard from "../components/EnhancedCard.jsx";
+import AiAdvisorWidget from "../components/AiAdvisorWidget.jsx";
 import DatePicker, { registerLocale } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -204,6 +205,7 @@ function Dashboard() {
   const [editTargetValue, setEditTargetValue] = useState("60000000");
   const [userRole, setUserRole] = useState(null);
   const [savingTarget, setSavingTarget] = useState(false);
+  const [advisorEnabled, setAdvisorEnabled] = useState(false);
 
   // State untuk 5 chart baru (client-side aggregation)
   const [brandSalesChartData, setBrandSalesChartData] = useState({
@@ -651,7 +653,22 @@ function Dashboard() {
     loadRole();
   }, []);
 
+  // Fetch toggle AI Business Advisor
+  useEffect(() => {
+    const loadAdvisorFlag = async () => {
+      try {
+        const cfg = await fetchAiConfig();
+        setAdvisorEnabled(cfg?.advisor_enabled !== "false");
+      } catch (_) {
+        setAdvisorEnabled(true);
+      }
+    };
+    loadAdvisorFlag();
+  }, []);
+
   const canEditTarget = userRole === "admin" || userRole === "owner";
+  const canUseAdvisor =
+    (userRole === "admin" || userRole === "owner") && advisorEnabled;
 
   const handleSaveTarget = async () => {
     const newValue = Number(editTargetValue);
@@ -1510,6 +1527,10 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {canUseAdvisor && (
+        <AiAdvisorWidget startDate={dateRange[0]} endDate={dateRange[1]} />
+      )}
     </div>
   );
 }
