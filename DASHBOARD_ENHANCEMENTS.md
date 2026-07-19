@@ -53,7 +53,7 @@ Perbaiki daftar "Aktivitas Terkini" di ROW 5 (kanan).
 ---
 
 ## 5. Penjualan per Merek → Doughnut + Rank
-**Status:** Pending
+**Status:** Done
 
 Ganti Pie chart jadi Doughnut (hole in center = total sales).
 
