@@ -718,21 +718,26 @@ function Dashboard() {
           {(() => {
             const today = new Date();
             const dayOfMonth = today.getDate();
-            const dailyRate = dayOfMonth > 0 ? metrics.salesValue / dayOfMonth : 0;
-            if (dailyRate <= 0) return null;
+            if (dayOfMonth <= 0 || monthlyTarget <= 0) return null;
             if (metrics.salesValue >= monthlyTarget) {
               return <p className="text-xs text-green-600 font-medium mb-1">Tercapai lebih awal!</p>;
             }
-            const sisa = monthlyTarget - metrics.salesValue;
-            const hariButuh = Math.ceil(sisa / dailyRate);
-            const estimatedDate = new Date(today);
-            estimatedDate.setDate(estimatedDate.getDate() + hariButuh);
-            const endOfThisMonth = endOfMonth(today);
-            if (estimatedDate > endOfThisMonth) {
-              return <p className="text-xs text-slate-400 mb-1">Diperkirakan belum tercapai bulan ini</p>;
+            const daysInMonth = endOfMonth(today).getDate();
+            const sisaHari = daysInMonth - dayOfMonth;
+            if (sisaHari <= 0) return null;
+            const dailyRate = metrics.salesValue / dayOfMonth;
+            const projected = metrics.salesValue + dailyRate * sisaHari;
+            if (projected >= monthlyTarget) {
+              const sisaTarget = monthlyTarget - metrics.salesValue;
+              const hariButuh = Math.ceil(sisaTarget / dailyRate);
+              const estimatedDate = new Date(today);
+              estimatedDate.setDate(estimatedDate.getDate() + hariButuh);
+              const tglStr = format(estimatedDate, "d MMMM yyyy", { locale: id });
+              return <p className="text-xs text-slate-500 mb-1">Diperkirakan tercapai <span className="font-medium text-slate-700">{tglStr}</span></p>;
             }
-            const tglStr = format(estimatedDate, "d MMMM yyyy", { locale: id });
-            return <p className="text-xs text-slate-500 mb-1">Diperkirakan tercapai <span className="font-medium text-slate-700">{tglStr}</span></p>;
+            const sisaTarget = monthlyTarget - metrics.salesValue;
+            const kecepatanDibutuhkan = Math.ceil(sisaTarget / sisaHari);
+            return <p className="text-xs text-slate-500 mb-1">Perlu <span className="font-medium text-amber-600">Rp {new Intl.NumberFormat("id-ID").format(kecepatanDibutuhkan)}/hari</span> selama {sisaHari} hari lagi</p>;
           })()}
 
           {/* Mini Trend vs Bulan Lalu */}
