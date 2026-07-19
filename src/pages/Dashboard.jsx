@@ -427,34 +427,51 @@ function Dashboard() {
       setRecentActivities(recentActivitiesRes.data || []);
 
       // Ambil data kartu baru secara paralel
-      const [topCustomersRes, outOfStockRes, outOfStockCountRes, targetRes] =
-        await Promise.all([
-          supabase
-            .from("customer_overview")
-            .select("nama_pelanggan, total_transaksi, tingkatan")
-            .order("total_transaksi", { ascending: false })
-            .limit(5),
-          supabase
-            .from("products")
-            .select("id, kode, nama, merek, ukuran")
-            .eq("status", "Aktif")
-            .eq("stok", 0)
-            .order("nama")
-            .limit(10),
-          supabase
-            .from("products")
-            .select("*", { count: "exact", head: true })
-            .eq("status", "Aktif")
-            .eq("stok", 0),
-          supabase
-            .from("ai_config")
-            .select("value")
-            .eq("key", "monthly_sales_target")
-            .single(),
-        ]);
+      const [
+        topCustomersRes,
+        outOfStockRes,
+        outOfStockCountRes,
+        targetRes,
+        allTimeSalesRes,
+      ] = await Promise.all([
+        supabase
+          .from("customer_overview")
+          .select("nama_pelanggan, total_transaksi, tingkatan")
+          .order("total_transaksi", { ascending: false })
+          .limit(5),
+        supabase
+          .from("products")
+          .select("id, kode, nama, merek, ukuran")
+          .eq("status", "Aktif")
+          .eq("stok", 0),
+        supabase
+          .from("products")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "Aktif")
+          .eq("stok", 0),
+        supabase
+          .from("ai_config")
+          .select("value")
+          .eq("key", "monthly_sales_target")
+          .single(),
+        // Penjualan sepanjang waktu (untuk mengurutkan produk habis by qty terjual)
+        supabase.rpc("get_best_selling_products", {
+          start_date: new Date("2000-01-01T00:00:00Z").toISOString(),
+          end_date: endOfDay(new Date()).toISOString(),
+        }),
+      ]);
 
       setTopCustomers(topCustomersRes.data || []);
-      setOutOfStockProducts(outOfStockRes.data || []);
+      // Urutkan produk habis berdasarkan kuantitas terjual (terbanyak → tersedikit),
+      // dihitung dari penjualan SEPANJANG WAKTU (tidak terpengaruh filter tanggal dashboard).
+      const salesQtyById = new Map(
+        (allTimeSalesRes.data || []).map((p) => [p.id, p.total_terjual || 0]),
+      );
+      const sortedOutOfStock = (outOfStockRes.data || [])
+        .map((p) => ({ ...p, total_terjual: salesQtyById.get(p.id) || 0 }))
+        .sort((a, b) => b.total_terjual - a.total_terjual)
+        .slice(0, 10);
+      setOutOfStockProducts(sortedOutOfStock);
       setOutOfStockCount(
         outOfStockCountRes.count ?? outOfStockRes.data?.length ?? 0,
       );
@@ -1413,6 +1430,9 @@ function Dashboard() {
                 {outOfStockCount}
               </span>
             </div>
+            <p className="text-xs text-slate-400 mb-2">
+              Diurutkan dari terlaris (total terjual sepanjang waktu)
+            </p>
 
             {/* Progress bar: persentase produk habis dari total produk aktif */}
             {(() => {
@@ -1462,9 +1482,14 @@ function Dashboard() {
                         {product.ukuran && ` · ${product.ukuran}`}
                       </p>
                     </div>
-                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">
-                      Stok 0
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">
+                        Stok 0
+                      </span>
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                        Terjual: {product.total_terjual ?? 0}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>
