@@ -81,12 +81,18 @@ const EnhancedCard = ({
   to = "#",
   state = {},
   className = "",
+  // Index untuk staggered entrance animation (opsional)
+  animationIndex = null,
 }) => {
   const hasProgress = progress !== null && progress !== undefined;
+  const animClass =
+    animationIndex !== null && animationIndex !== undefined
+      ? `card-fade-in card-fade-in-${Math.min(animationIndex, 9)}`
+      : "";
 
   const content = (
     <div
-      className={`bg-white p-4 rounded-lg shadow flex flex-col items-center justify-center text-center h-full transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${className}`}
+      className={`bg-white p-4 rounded-lg shadow flex flex-col items-center justify-center text-center h-full transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${animClass} ${className}`}
     >
       {/* Header: ikon + judul */}
       <div className="flex items-center gap-2 mb-2">

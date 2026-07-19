@@ -143,6 +143,7 @@ const MetricCard = ({
   state = {},
   trendChange = null,
   trendLabel = "vs minggu lalu",
+  animationIndex = null,
 }) => (
   <EnhancedCard
     icon={icon}
@@ -154,6 +155,7 @@ const MetricCard = ({
     state={state}
     trendChange={trendChange}
     trendLabel={trendLabel}
+    animationIndex={animationIndex}
   />
 );
 
@@ -684,6 +686,7 @@ function Dashboard() {
           value={`Rp ${new Intl.NumberFormat("id-ID").format(metrics.salesValue)}`}
           color="bg-green-500"
           trendChange={weeklyTrend.lastWeek > 0 ? weeklyTrend.change : null}
+          animationIndex={0}
         />
         <MetricCard
           icon={<FaMoneyBillWave size={24} />}
@@ -691,18 +694,21 @@ function Dashboard() {
           value={`Rp ${new Intl.NumberFormat("id-ID").format(metrics.profitValue)}`}
           color="bg-teal-500"
           trendChange={weeklyTrend.lastWeekProfit > 0 ? weeklyTrend.profitChange : null}
+          animationIndex={1}
         />
         <MetricCard
           icon={<FaReceipt size={24} />}
           title="Transaksi"
           value={metrics.transactionsCount}
           color="bg-orange-500"
+          animationIndex={2}
         />
         <MetricCard
           icon={<FaBoxOpen size={24} />}
           title="Produk Aktif"
           value={metrics.totalProducts}
           color="bg-blue-500"
+          animationIndex={3}
         />
         <MetricCard
           icon={<FaExclamationTriangle size={24} />}
@@ -712,6 +718,7 @@ function Dashboard() {
           isLink={true}
           to="/produk"
           state={{ filter: "stok_rendah" }}
+          animationIndex={4}
         />
       </div>
 
@@ -725,8 +732,9 @@ function Dashboard() {
               : 0,
           )}`}
           color="bg-purple-500"
+          animationIndex={5}
         />
-        <div className="bg-white p-5 rounded-lg shadow flex flex-col items-center justify-center text-center h-full">
+        <div className="bg-white p-5 rounded-lg shadow flex flex-col items-center justify-center text-center h-full card-fade-in card-fade-in-6">
           {/* Header */}
           <div className="flex items-center gap-1.5 mb-2">
             <div className="p-2.5 rounded-full text-white bg-indigo-500">

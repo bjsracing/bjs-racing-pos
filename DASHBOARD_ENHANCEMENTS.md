@@ -94,13 +94,18 @@ Buat component baru yang bisa dipakai oleh semua kartu dengan fitur:
 ---
 
 ## 8. Card Entrance Animation
-**Status:** Pending
+**Status:** Done
 
 Staggered fade-in effect saat pertama kali load.
 
 - CSS `@keyframes fadeInUp` dengan delay bertahap per kartu
 - Pakai CSS tanpa library tambahan
 - Delay: 0ms, 50ms, 100ms, dst per kartu
+
+**Implementasi:**
+- `src/styles.css`: tambah `@keyframes fadeInUp` (opacity 0 + translateY 16px → 1 + 0), class `.card-fade-in` (`animation: fadeInUp 0.5s ease-out forwards`), dan utility delay `.card-fade-in-0..9` (0ms, 50ms, ... 450ms). Menghormati `prefers-reduced-motion: reduce`.
+- `EnhancedCard.jsx`: prop opsional `animationIndex` yang menambahkan class `card-fade-in card-fade-in-{index}`.
+- `Dashboard.jsx`: ROW 1 (5 kartu) diberi `animationIndex={0..4}`, ROW 2 kartu Rata-rata `animationIndex={5}`, dan kartu Target Bulanan class `card-fade-in card-fade-in-6`.
 
 ---
 

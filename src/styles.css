@@ -6,3 +6,40 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Card entrance animation: staggered fade-in-up */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-fade-in {
+  opacity: 0;
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+/* Delay bertahap per kartu (0ms, 50ms, 100ms, dst) */
+.card-fade-in-0 { animation-delay: 0ms; }
+.card-fade-in-1 { animation-delay: 50ms; }
+.card-fade-in-2 { animation-delay: 100ms; }
+.card-fade-in-3 { animation-delay: 150ms; }
+.card-fade-in-4 { animation-delay: 200ms; }
+.card-fade-in-5 { animation-delay: 250ms; }
+.card-fade-in-6 { animation-delay: 300ms; }
+.card-fade-in-7 { animation-delay: 350ms; }
+.card-fade-in-8 { animation-delay: 400ms; }
+.card-fade-in-9 { animation-delay: 450ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card-fade-in {
+    opacity: 1;
+    animation: none;
+  }
+}
+
