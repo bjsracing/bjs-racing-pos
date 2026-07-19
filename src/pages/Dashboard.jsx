@@ -633,8 +633,8 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* ROW 3: 3 chart baru */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      {/* ROW 3: 4 chart baru */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-2">Penjualan per Merek</h2>
           <div className="mt-4 h-72 flex justify-center items-center">
@@ -655,6 +655,27 @@ function Dashboard() {
             ) : (
               <p className="text-slate-400 text-sm">Tidak ada data</p>
             )}
+          </div>
+        </div>
+
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow">
+          <h2 className="text-lg font-semibold mb-2">
+            Penjualan per Kategori
+          </h2>
+          <div className="mt-4 h-72 flex justify-center items-center">
+            <Pie
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "right",
+                    labels: { boxWidth: 12, font: { size: 10 } },
+                  },
+                },
+              }}
+              data={categoryChartData}
+            />
           </div>
         </div>
 
@@ -880,27 +901,6 @@ function Dashboard() {
         </div>
 
         <div className="lg:col-span-2 flex flex-col gap-6">
-          <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-2">
-              Penjualan per Kategori
-            </h2>
-            <div className="mt-4 h-64 flex justify-center items-center">
-              <Pie
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: "right",
-                      labels: { boxWidth: 12, font: { size: 10 } },
-                    },
-                  },
-                }}
-                data={categoryChartData}
-              />
-            </div>
-          </div>
-
           <div className="bg-white p-4 md:p-6 rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-4">Aktivitas Terkini</h2>
             <ul className="space-y-4">
