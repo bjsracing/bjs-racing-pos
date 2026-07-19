@@ -38,6 +38,7 @@ import {
   startOfDay,
   endOfDay,
   subDays,
+  subMonths,
   startOfMonth,
   endOfMonth,
   format,
@@ -121,6 +122,7 @@ function Dashboard() {
   const [outOfStockProducts, setOutOfStockProducts] = useState([]);
   const [outOfStockCount, setOutOfStockCount] = useState(0);
   const [monthlyTarget, setMonthlyTarget] = useState(60000000);
+  const [lastMonthSales, setLastMonthSales] = useState(0);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
   const [editTargetValue, setEditTargetValue] = useState("60000000");
   const [userRole, setUserRole] = useState(null);
@@ -367,6 +369,7 @@ function Dashboard() {
         purchaseVsSalesRes,
         thisWeekMetricsRes,
         lastWeekMetricsRes,
+        lastMonthMetricsRes,
       ] = await Promise.all([
         supabase.rpc("get_sales_by_brand", {
           start_date: startTime,
@@ -391,6 +394,10 @@ function Dashboard() {
         supabase.rpc("get_dashboard_metrics", {
           start_date: startOfDay(subDays(new Date(), 13)).toISOString(),
           end_date: startOfDay(subDays(new Date(), 7)).toISOString(),
+        }),
+        supabase.rpc("get_dashboard_metrics", {
+          start_date: startOfMonth(subMonths(new Date(), 1)).toISOString(),
+          end_date: endOfMonth(subMonths(new Date(), 1)).toISOString(),
         }),
       ]);
 
@@ -472,6 +479,10 @@ function Dashboard() {
         lastWeek: lastWeekTotal,
         change: weeklyChange,
       });
+
+      // --- 6. Penjualan bulan lalu (untuk trend kartu Target) ---
+      const lastMonthTotal = lastMonthMetricsRes.data?.[0]?.sales_value || 0;
+      setLastMonthSales(lastMonthTotal);
 
       // --- 4. Pembelian vs Penjualan ---
       const pvsData = purchaseVsSalesRes.data || [];
@@ -628,11 +639,12 @@ function Dashboard() {
           )}`}
           color="bg-purple-500"
         />
-        <div className="bg-white p-4 rounded-lg shadow flex flex-col items-center justify-center text-center h-full">
-          <div className="p-4 rounded-full text-white mb-3 bg-indigo-500">
-            <FaBullseye size={24} />
-          </div>
-          <div className="flex items-center gap-1.5">
+        <div className="bg-white p-5 rounded-lg shadow flex flex-col items-center justify-center text-center h-full">
+          {/* Header */}
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="p-2.5 rounded-full text-white bg-indigo-500">
+              <FaBullseye size={18} />
+            </div>
             <p className="text-sm text-slate-500 font-medium">Target Bulanan</p>
             {canEditTarget && !isEditingTarget && (
               <button
@@ -643,12 +655,104 @@ function Dashboard() {
                 className="text-indigo-400 hover:text-indigo-600 transition-colors"
                 title="Edit target"
               >
-                <FaPencilAlt size={12} />
+                <FaPencilAlt size={11} />
               </button>
             )}
           </div>
-          <div className="w-full mt-2">
-            <div className="flex justify-between text-xs mb-1">
+
+          {/* Circular Progress */}
+          {(() => {
+            const pct = monthlyTarget > 0 ? Math.min((metrics.salesValue / monthlyTarget) * 100, 100) : 0;
+            const radius = 42;
+            const circumference = 2 * Math.PI * radius;
+            const offset = circumference - (pct / 100) * circumference;
+            const strokeColor =
+              pct >= 100 ? "#22c55e" : pct >= 60 ? "#eab308" : "#ef4444";
+            return (
+              <div className="relative my-2">
+                <svg width="110" height="110" viewBox="0 0 110 110">
+                  <circle
+                    cx="55" cy="55" r={radius}
+                    fill="none" stroke="#e2e8f0" strokeWidth="8"
+                  />
+                  <circle
+                    cx="55" cy="55" r={radius}
+                    fill="none" stroke={strokeColor} strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    transform="rotate(-90 55 55)"
+                    style={{ transition: "stroke-dashoffset 0.8s ease, stroke 0.3s ease" }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xl font-bold" style={{ color: strokeColor }}>
+                    {Math.round(pct)}%
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Status Badge */}
+          {(() => {
+            const pct = monthlyTarget > 0 ? (metrics.salesValue / monthlyTarget) * 100 : 0;
+            if (pct >= 100) {
+              return <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 mb-1.5">Tercapai</span>;
+            }
+            if (pct >= 60) {
+              return <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700 mb-1.5">On Track</span>;
+            }
+            return <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 mb-1.5">Perlu Percepatan</span>;
+          })()}
+
+          {/* Sisa Target */}
+          <p className="text-xs text-slate-500 mb-1">
+            {monthlyTarget > 0 && metrics.salesValue < monthlyTarget
+              ? <>Sisa <span className="font-semibold text-slate-700">Rp {new Intl.NumberFormat("id-ID").format(monthlyTarget - metrics.salesValue)}</span> lagi</>
+              : <span className="font-semibold text-green-600">Target Tercapai!</span>
+            }
+          </p>
+
+          {/* Estimasi Tanggal Tercapai */}
+          {(() => {
+            const today = new Date();
+            const dayOfMonth = today.getDate();
+            const dailyRate = dayOfMonth > 0 ? metrics.salesValue / dayOfMonth : 0;
+            if (dailyRate <= 0) return null;
+            if (metrics.salesValue >= monthlyTarget) {
+              return <p className="text-xs text-green-600 font-medium mb-1">Tercapai lebih awal!</p>;
+            }
+            const sisa = monthlyTarget - metrics.salesValue;
+            const hariButuh = Math.ceil(sisa / dailyRate);
+            const estimatedDate = new Date(today);
+            estimatedDate.setDate(estimatedDate.getDate() + hariButuh);
+            const endOfThisMonth = endOfMonth(today);
+            if (estimatedDate > endOfThisMonth) {
+              return <p className="text-xs text-slate-400 mb-1">Diperkirakan belum tercapai bulan ini</p>;
+            }
+            const tglStr = format(estimatedDate, "d MMMM yyyy", { locale: id });
+            return <p className="text-xs text-slate-500 mb-1">Diperkirakan tercapai <span className="font-medium text-slate-700">{tglStr}</span></p>;
+          })()}
+
+          {/* Mini Trend vs Bulan Lalu */}
+          {(() => {
+            if (lastMonthSales <= 0) return null;
+            const thisMonthTarget = monthlyTarget;
+            const thisMonthPct = thisMonthTarget > 0 ? (metrics.salesValue / thisMonthTarget) * 100 : 0;
+            const lastMonthPct = thisMonthTarget > 0 ? (lastMonthSales / thisMonthTarget) * 100 : 0;
+            const diff = thisMonthPct - lastMonthPct;
+            const rounded = Math.round(Math.abs(diff) * 10) / 10;
+            if (rounded === 0) return null;
+            if (diff > 0) {
+              return <p className="text-xs text-green-600 font-medium mb-1">&#8593; {rounded}% dari bulan lalu</p>;
+            }
+            return <p className="text-xs text-red-500 font-medium mb-1">&#8595; {rounded}% dari bulan lalu</p>;
+          })()}
+
+          {/* Sales & Target values */}
+          <div className="w-full mt-1">
+            <div className="flex justify-between text-xs">
               <span className="font-semibold">
                 Rp {new Intl.NumberFormat("id-ID").format(metrics.salesValue)}
               </span>
@@ -686,31 +790,10 @@ function Dashboard() {
                 </div>
               ) : (
                 <span className="text-slate-500">
-                  Rp {new Intl.NumberFormat("id-ID").format(monthlyTarget)}
+                  Target: Rp {new Intl.NumberFormat("id-ID").format(monthlyTarget)}
                 </span>
               )}
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-3">
-              <div
-                className={`h-3 rounded-full transition-all ${
-                  monthlyTarget > 0 &&
-                  (metrics.salesValue / monthlyTarget) * 100 >= 100
-                    ? "bg-green-500"
-                    : (metrics.salesValue / monthlyTarget) * 100 >= 60
-                      ? "bg-yellow-500"
-                      : "bg-red-500"
-                }`}
-                style={{
-                  width: `${Math.min((metrics.salesValue / monthlyTarget) * 100, 100)}%`,
-                }}
-              />
-            </div>
-            <p className="text-xs text-slate-500 mt-1 text-right font-semibold">
-              {monthlyTarget > 0
-                ? Math.round((metrics.salesValue / monthlyTarget) * 100)
-                : 0}
-              %
-            </p>
           </div>
         </div>
       </div>
