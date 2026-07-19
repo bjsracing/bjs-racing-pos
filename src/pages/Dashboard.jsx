@@ -956,10 +956,15 @@ function Dashboard() {
         </div>
 
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">
+          <h2 className="text-lg font-semibold mb-1">
             Penjualan per Kategori
           </h2>
-          <div className="mt-4 h-72 flex justify-center items-center">
+          {categoryChartData.labels.length > 0 && (
+            <p className="text-sm font-bold text-slate-700 mb-1">
+              Total: Rp {new Intl.NumberFormat("id-ID").format(metrics.salesValue)}
+            </p>
+          )}
+          <div className="h-72 flex justify-center items-center">
             <Pie
               options={{
                 responsive: true,
