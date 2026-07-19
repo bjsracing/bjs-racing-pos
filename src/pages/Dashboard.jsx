@@ -941,7 +941,7 @@ function Dashboard() {
                         },
                       },
                     },
-                    centerText: false,
+                    centerText: true,
                   },
                 }}
                 data={brandSalesChartData}
