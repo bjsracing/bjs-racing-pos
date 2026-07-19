@@ -27,7 +27,11 @@ import {
   FaBullseye,
   FaUserTie,
   FaExclamationCircle,
+  FaPencilAlt,
+  FaCheck,
+  FaTimes,
 } from "react-icons/fa";
+import { updateAiConfig, getUserRole } from "../config/aiConfig.js";
 import DatePicker, { registerLocale } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -117,6 +121,10 @@ function Dashboard() {
   const [outOfStockProducts, setOutOfStockProducts] = useState([]);
   const [outOfStockCount, setOutOfStockCount] = useState(0);
   const [monthlyTarget, setMonthlyTarget] = useState(60000000);
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [editTargetValue, setEditTargetValue] = useState("60000000");
+  const [userRole, setUserRole] = useState(null);
+  const [savingTarget, setSavingTarget] = useState(false);
 
   // State untuk 5 chart baru (client-side aggregation)
   const [brandSalesChartData, setBrandSalesChartData] = useState({
@@ -497,6 +505,32 @@ function Dashboard() {
     }
   }, []);
 
+  // Fetch user role for edit permissions
+  useEffect(() => {
+    const loadRole = async () => {
+      const role = await getUserRole();
+      setUserRole(role);
+    };
+    loadRole();
+  }, []);
+
+  const canEditTarget = userRole === "admin" || userRole === "owner";
+
+  const handleSaveTarget = async () => {
+    const newValue = Number(editTargetValue);
+    if (!newValue || newValue < 0) return;
+    setSavingTarget(true);
+    try {
+      await updateAiConfig("monthly_sales_target", String(newValue));
+      setMonthlyTarget(newValue);
+      setIsEditingTarget(false);
+    } catch (err) {
+      alert("Gagal menyimpan target: " + err.message);
+    } finally {
+      setSavingTarget(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData(dateRange[0], dateRange[1]);
   }, [dateRange, fetchDashboardData]);
@@ -598,15 +632,63 @@ function Dashboard() {
           <div className="p-4 rounded-full text-white mb-3 bg-indigo-500">
             <FaBullseye size={24} />
           </div>
-          <p className="text-sm text-slate-500 font-medium">Target Bulanan</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm text-slate-500 font-medium">Target Bulanan</p>
+            {canEditTarget && !isEditingTarget && (
+              <button
+                onClick={() => {
+                  setEditTargetValue(String(monthlyTarget));
+                  setIsEditingTarget(true);
+                }}
+                className="text-indigo-400 hover:text-indigo-600 transition-colors"
+                title="Edit target"
+              >
+                <FaPencilAlt size={12} />
+              </button>
+            )}
+          </div>
           <div className="w-full mt-2">
             <div className="flex justify-between text-xs mb-1">
               <span className="font-semibold">
                 Rp {new Intl.NumberFormat("id-ID").format(metrics.salesValue)}
               </span>
-              <span className="text-slate-500">
-                Rp {new Intl.NumberFormat("id-ID").format(monthlyTarget)}
-              </span>
+              {isEditingTarget ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={editTargetValue}
+                    onChange={(e) => setEditTargetValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveTarget();
+                      if (e.key === "Escape") setIsEditingTarget(false);
+                    }}
+                    className="w-28 text-right px-1.5 py-0.5 border border-indigo-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    autoFocus
+                    min="0"
+                    disabled={savingTarget}
+                  />
+                  <button
+                    onClick={handleSaveTarget}
+                    disabled={savingTarget}
+                    className="text-green-500 hover:text-green-700 disabled:opacity-50"
+                    title="Simpan"
+                  >
+                    <FaCheck size={12} />
+                  </button>
+                  <button
+                    onClick={() => setIsEditingTarget(false)}
+                    disabled={savingTarget}
+                    className="text-red-400 hover:text-red-600 disabled:opacity-50"
+                    title="Batal"
+                  >
+                    <FaTimes size={12} />
+                  </button>
+                </div>
+              ) : (
+                <span className="text-slate-500">
+                  Rp {new Intl.NumberFormat("id-ID").format(monthlyTarget)}
+                </span>
+              )}
             </div>
             <div className="w-full bg-slate-200 rounded-full h-3">
               <div
