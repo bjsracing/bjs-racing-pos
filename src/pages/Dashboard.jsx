@@ -144,6 +144,7 @@ const MetricCard = ({
   trendChange = null,
   trendLabel = "vs minggu lalu",
   animationIndex = null,
+  subtitle = null,
 }) => (
   <EnhancedCard
     icon={icon}
@@ -156,6 +157,7 @@ const MetricCard = ({
     trendChange={trendChange}
     trendLabel={trendLabel}
     animationIndex={animationIndex}
+    subtitle={subtitle}
   />
 );
 
@@ -167,6 +169,7 @@ function Dashboard() {
     salesValue: 0,
     profitValue: 0,
     transactionsCount: 0,
+    categoryCount: 0,
   });
 
   // State untuk grafik
@@ -328,12 +331,25 @@ function Dashboard() {
         .gt("stok", 0);
       const lowStockProducts =
         lowStockProductsData?.filter((p) => p.stok <= p.stok_min).length || 0;
+      // Hitung jumlah kategori unik untuk produk aktif (subtitle "Produk Aktif")
+      const { data: kategoriData } = await supabase
+        .from("products")
+        .select("kategori")
+        .eq("status", "Aktif");
+      const categoryCount = kategoriData
+        ? new Set(
+            kategoriData
+              .map((p) => (p.kategori || "").trim())
+              .filter((k) => k && k !== "-"),
+          ).size
+        : 0;
       setMetrics({
         totalProducts,
         lowStockProducts,
         salesValue: sales_value,
         profitValue: profit_value,
         transactionsCount: transactions_count,
+        categoryCount,
       });
 
       // Proses Data Grafik dari RPC
@@ -411,29 +427,37 @@ function Dashboard() {
       setRecentActivities(recentActivitiesRes.data || []);
 
       // Ambil data kartu baru secara paralel
-      const [topCustomersRes, outOfStockRes, targetRes] = await Promise.all([
-        supabase
-          .from("customer_overview")
-          .select("nama_pelanggan, total_transaksi, tingkatan")
-          .order("total_transaksi", { ascending: false })
-          .limit(5),
-        supabase
-          .from("products")
-          .select("id, kode, nama, merek, ukuran")
-          .eq("status", "Aktif")
-          .eq("stok", 0)
-          .order("nama")
-          .limit(10),
-        supabase
-          .from("ai_config")
-          .select("value")
-          .eq("key", "monthly_sales_target")
-          .single(),
-      ]);
+      const [topCustomersRes, outOfStockRes, outOfStockCountRes, targetRes] =
+        await Promise.all([
+          supabase
+            .from("customer_overview")
+            .select("nama_pelanggan, total_transaksi, tingkatan")
+            .order("total_transaksi", { ascending: false })
+            .limit(5),
+          supabase
+            .from("products")
+            .select("id, kode, nama, merek, ukuran")
+            .eq("status", "Aktif")
+            .eq("stok", 0)
+            .order("nama")
+            .limit(10),
+          supabase
+            .from("products")
+            .select("*", { count: "exact", head: true })
+            .eq("status", "Aktif")
+            .eq("stok", 0),
+          supabase
+            .from("ai_config")
+            .select("value")
+            .eq("key", "monthly_sales_target")
+            .single(),
+        ]);
 
       setTopCustomers(topCustomersRes.data || []);
       setOutOfStockProducts(outOfStockRes.data || []);
-      setOutOfStockCount(outOfStockRes.data?.length || 0);
+      setOutOfStockCount(
+        outOfStockCountRes.count ?? outOfStockRes.data?.length ?? 0,
+      );
       if (targetRes.data?.value) {
         setMonthlyTarget(Number(targetRes.data.value));
       }
@@ -709,6 +733,11 @@ function Dashboard() {
           value={metrics.totalProducts}
           color="bg-blue-500"
           animationIndex={3}
+          subtitle={
+            metrics.categoryCount > 0
+              ? `${metrics.categoryCount} kategori`
+              : null
+          }
         />
         <MetricCard
           icon={<FaExclamationTriangle size={24} />}
@@ -1373,21 +1402,56 @@ function Dashboard() {
           </div>
 
           <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <FaExclamationCircle className="text-red-500" />
+                <FaExclamationCircle
+                  className={`text-red-500 ${outOfStockCount > 10 ? "animate-blink" : ""}`}
+                />
                 Produk Habis
               </h2>
               <span className="bg-red-100 text-red-700 text-sm font-bold px-2 py-1 rounded-full">
                 {outOfStockCount}
               </span>
             </div>
+
+            {/* Progress bar: persentase produk habis dari total produk aktif */}
+            {(() => {
+              const total = metrics.totalProducts || 0;
+              if (total <= 0) return null;
+              const pct = Math.min(
+                Math.round((outOfStockCount / total) * 1000) / 10,
+                100,
+              );
+              const barColor =
+                pct >= 20
+                  ? "bg-red-500"
+                  : pct >= 10
+                    ? "bg-orange-400"
+                    : "bg-yellow-400";
+              return (
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>{pct}% dari total produk</span>
+                    <span>
+                      {outOfStockCount} / {total}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className={`h-1.5 rounded-full transition-all duration-500 ${barColor}`}
+                      style={{ width: `${Math.max(pct, 2)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
             {outOfStockProducts.length > 0 ? (
-              <ul className="space-y-2 max-h-64 overflow-y-auto">
+              <ul className="space-y-1 max-h-64 overflow-y-auto">
                 {outOfStockProducts.map((product) => (
                   <li
                     key={product.id}
-                    className="flex items-center justify-between text-sm border-b pb-2 last:border-b-0"
+                    className="flex items-center justify-between text-sm border-b border-slate-100 pb-2 last:border-b-0 rounded-lg px-2 py-1.5 -mx-1 transition-all duration-200 hover:bg-slate-50 hover:shadow-sm cursor-default"
                   >
                     <div>
                       <p className="font-medium text-slate-700">

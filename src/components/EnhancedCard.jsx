@@ -74,6 +74,8 @@ const EnhancedCard = ({
   trendLabel = "vs minggu lalu",
   // Badge status (opsional)
   badge = null, // { text: string, color: "green"|"yellow"|"red"|"blue"|"slate"|"indigo" }
+  // Subtitle di bawah nilai utama (opsional)
+  subtitle = null,
   // Konten tambahan di bawah nilai (opsional)
   children,
   // Link (opsional)
@@ -110,6 +112,11 @@ const EnhancedCard = ({
       {/* Nilai utama */}
       {value !== undefined && value !== null && (
         <p className="text-2xl font-bold">{value}</p>
+      )}
+
+      {/* Subtitle (opsional) */}
+      {subtitle && (
+        <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
       )}
 
       {/* Badge status (opsional) */}

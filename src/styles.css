@@ -43,3 +43,19 @@
   }
 }
 
+/* Blinking warning icon (dipakai saat produk habis > 10) */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.animate-blink {
+  animation: blink 1s infinite ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blink {
+    animation: none;
+  }
+}
+

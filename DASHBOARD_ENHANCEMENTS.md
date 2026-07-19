@@ -110,7 +110,7 @@ Staggered fade-in effect saat pertama kali load.
 ---
 
 ## 9. Produk Habis + Produk Aktif → Enhanced Display
-**Status:** Pending
+**Status:** Done
 
 ### Produk Aktif (ROW 1)
 - Tambah subtitle jumlah kategori/merek di bawah angka
@@ -120,3 +120,9 @@ Staggered fade-in effect saat pertama kali load.
 - Tambah progress bar kecil (berapa % produk yang habis dari total)
 - Tambah ikon warning berkedip jika jumlah > 10
 - Hover effect pada setiap item
+
+**Implementasi:**
+- `Dashboard.jsx` fetch: tambah `metrics.categoryCount` (jumlah kategori unik produk aktif) dan query `count: exact` terpisah untuk jumlah produk habis akurat (`outOfStockCount` tidak lagi terbatas 10 dari `.limit`).
+- `EnhancedCard.jsx` + `MetricCard`: tambah prop `subtitle`; kartu "Produk Aktif" menampilkan `"{n} kategori"`.
+- Kartu "Produk Habis": progress bar `% habis dari total produk aktif` (warna kuning/oranye/merah sesuai proporsi), ikon `FaExclamationCircle` berkedip (`animate-blink`) saat `outOfStockCount > 10`, dan hover effect (`hover:bg-slate-50 hover:shadow-sm`) pada tiap item.
+- `styles.css`: tambah `@keyframes blink` + `.animate-blink` (menghormati `prefers-reduced-motion`).
