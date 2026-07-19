@@ -60,6 +60,76 @@ ChartJS.register(
   ArcElement,
 );
 
+const Skeleton = ({ className = "" }) => (
+  <div
+    className={`animate-pulse bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 rounded ${className}`}
+    style={{ backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite linear" }}
+  />
+);
+
+const DashboardSkeleton = () => (
+  <div className="p-4 sm:p-6 bg-orange-200 min-h-screen rounded-xl">
+    <div className="mb-6"><Skeleton className="h-8 w-48" /></div>
+    <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
+      <div className="flex gap-2"><Skeleton className="h-9 w-20" /><Skeleton className="h-9 w-20" /><Skeleton className="h-9 w-20" /></div>
+    </div>
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="bg-white p-4 rounded-lg shadow flex flex-col items-center h-32">
+          <Skeleton className="w-12 h-12 rounded-full mb-3" />
+          <Skeleton className="h-4 w-20 mb-2" />
+          <Skeleton className="h-6 w-24" />
+        </div>
+      ))}
+    </div>
+    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
+      <div className="bg-white p-4 rounded-lg shadow flex flex-col items-center h-32">
+        <Skeleton className="w-12 h-12 rounded-full mb-3" />
+        <Skeleton className="h-4 w-24 mb-2" />
+        <Skeleton className="h-6 w-32" />
+      </div>
+      <div className="bg-white p-4 rounded-lg shadow flex flex-col items-center h-56">
+        <Skeleton className="w-12 h-12 rounded-full mb-3" />
+        <Skeleton className="h-4 w-28 mb-2" />
+        <Skeleton className="w-24 h-24 rounded-full mb-2" />
+        <Skeleton className="h-4 w-16" />
+      </div>
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="bg-white p-4 rounded-lg shadow h-80">
+          <Skeleton className="h-5 w-32 mb-4" />
+          <Skeleton className="h-full w-full rounded" />
+        </div>
+      ))}
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      {[...Array(2)].map((_, i) => (
+        <div key={i} className="bg-white p-4 rounded-lg shadow h-72">
+          <Skeleton className="h-5 w-40 mb-4" />
+          <Skeleton className="h-full w-full rounded" />
+        </div>
+      ))}
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="lg:col-span-3 bg-white p-4 rounded-lg shadow h-96">
+        <Skeleton className="h-5 w-36 mb-4" />
+        <Skeleton className="h-full w-full rounded" />
+      </div>
+      <div className="lg:col-span-2 space-y-6">
+        <div className="bg-white p-4 rounded-lg shadow h-64">
+          <Skeleton className="h-5 w-32 mb-4" />
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full mb-3" />)}
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow h-64">
+          <Skeleton className="h-5 w-32 mb-4" />
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full mb-3" />)}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const MetricCard = ({
   icon,
   title,
@@ -571,6 +641,8 @@ function Dashboard() {
   }, [dateRange, fetchDashboardData]);
 
   // Kode JSX di bawah ini tidak berubah, hanya memanggil state yang sudah diisi.
+  if (loading) return <DashboardSkeleton />;
+
   return (
     <div className="p-4 sm:p-6 bg-orange-200 min-h-screen rounded-xl">
       <h1 className="text-2xl sm:text-3xl font-bold mb-6">Dashboard</h1>

@@ -30,7 +30,7 @@ Tambah arrow indicator hijau/merah di bawah angka Rp untuk kartu "Penjualan" dan
 ---
 
 ## 3. Loading Skeleton
-**Status:** Pending
+**Status:** Done
 
 Tambah skeleton placeholder (animasi shimmer) saat data belum load.
 
