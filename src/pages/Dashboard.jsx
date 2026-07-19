@@ -904,14 +904,18 @@ function Dashboard() {
       {/* ROW 3: 4 chart baru */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">Penjualan per Merek</h2>
-          <div className="mt-4 h-72 flex justify-center items-center">
+          <h2 className="text-lg font-semibold mb-1">Penjualan per Merek</h2>
+          {brandSalesChartData.labels.length > 0 && (
+            <p className="text-sm font-bold text-slate-700 mb-1">
+              Total: Rp {new Intl.NumberFormat("id-ID").format(metrics.salesValue)}
+            </p>
+          )}
+          <div className="h-72 flex justify-center items-center">
             {brandSalesChartData.labels.length > 0 ? (
-              <Doughnut
+              <Pie
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  cutout: "65%",
                   plugins: {
                     legend: {
                       position: "right",
@@ -941,33 +945,9 @@ function Dashboard() {
                         },
                       },
                     },
-                    centerText: true,
                   },
                 }}
                 data={brandSalesChartData}
-                plugins={[{
-                  id: "centerText",
-                  afterDraw(chart) {
-                    const { ctx, width, height } = chart;
-                    const total = metrics.salesValue;
-                    ctx.save();
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-                    ctx.font = "bold 11px sans-serif";
-                    ctx.fillStyle = "#475569";
-                    ctx.fillText("Total", width / 2, height / 2 - 8);
-                    ctx.font = "bold 13px sans-serif";
-                    ctx.fillStyle = "#1e293b";
-                    const txt = `Rp ${new Intl.NumberFormat("id-ID").format(total)}`;
-                    const txtWidth = ctx.measureText(txt).width;
-                    const maxWidth = (chart.chartArea?.width || width) * 0.5;
-                    if (txtWidth > maxWidth) {
-                      ctx.font = "bold 10px sans-serif";
-                    }
-                    ctx.fillText(txt, width / 2, height / 2 + 8);
-                    ctx.restore();
-                  },
-                }]}
               />
             ) : (
               <p className="text-slate-400 text-sm">Tidak ada data</p>
