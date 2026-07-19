@@ -76,7 +76,7 @@ Tambah mini progress bar di bawah nama pelanggan (proporsi dari top 1).
 ---
 
 ## 7. MetricCard Component → Reusable EnhancedCard
-**Status:** Pending
+**Status:** Done
 
 Buat component baru yang bisa dipakai oleh semua kartu dengan fitur:
 - Circular progress (seperti Target Bulanan)
@@ -84,6 +84,12 @@ Buat component baru yang bisa dipakai oleh semua kartu dengan fitur:
 - Badge status
 - Hover effect
 - Konsisten dengan desain Target Bulanan
+
+**Implementasi:**
+- File baru `src/components/EnhancedCard.jsx` (reusable), props: `icon`, `title`, `value`, `color`, `progress`, `trendChange`/`trendLabel`, `badge` ({text,color}), `children`, serta dukungan `isLink`/`to`/`state`.
+- Sub-komponen `CircularProgress` bergaya sama dengan Target Bulanan (warna dinamis hijau/kuning/merah berdasarkan persentase).
+- Hover effect: `hover:shadow-md hover:-translate-y-0.5` dengan transition halus.
+- `MetricCard` di `Dashboard.jsx` di-refactor menjadi wrapper tipis di atas `EnhancedCard`, sehingga semua kartu ROW 1 & 2 otomatis konsisten tanpa mengubah pemakaian lama.
 
 ---
 

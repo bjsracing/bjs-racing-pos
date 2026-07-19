@@ -34,6 +34,7 @@ import {
   FaArrowDown,
 } from "react-icons/fa";
 import { updateAiConfig, getUserRole } from "../config/aiConfig.js";
+import EnhancedCard from "../components/EnhancedCard.jsx";
 import DatePicker, { registerLocale } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -130,6 +131,8 @@ const DashboardSkeleton = () => (
   </div>
 );
 
+// MetricCard kini adalah wrapper tipis di atas EnhancedCard (reusable),
+// agar semua pemakaian lama tetap kompatibel namun konsisten secara desain.
 const MetricCard = ({
   icon,
   title,
@@ -140,33 +143,19 @@ const MetricCard = ({
   state = {},
   trendChange = null,
   trendLabel = "vs minggu lalu",
-}) => {
-  const content = (
-    <div
-      className={`bg-white p-4 rounded-lg shadow flex flex-col items-center justify-center text-center h-full ${isLink ? "hover:opacity-90 transition-opacity" : ""}`}
-    >
-      <div className={`p-4 rounded-full text-white mb-3 ${color}`}>{icon}</div>
-      <p className="text-sm text-slate-500 font-medium">{title}</p>
-      <p className="text-2xl font-bold">{value}</p>
-      {trendChange !== null && trendChange !== undefined && (
-        <div className={`flex items-center gap-1 mt-1.5 text-xs font-semibold ${
-          trendChange >= 0 ? "text-green-600" : "text-red-500"
-        }`}>
-          {trendChange >= 0 ? <FaArrowUp size={10} /> : <FaArrowDown size={10} />}
-          <span>{trendChange >= 0 ? "+" : ""}{trendChange}%</span>
-          <span className="text-slate-400 font-normal">{trendLabel}</span>
-        </div>
-      )}
-    </div>
-  );
-  return isLink ? (
-    <Link to={to} state={state}>
-      {content}
-    </Link>
-  ) : (
-    content
-  );
-};
+}) => (
+  <EnhancedCard
+    icon={icon}
+    title={title}
+    value={value}
+    color={color}
+    isLink={isLink}
+    to={to}
+    state={state}
+    trendChange={trendChange}
+    trendLabel={trendLabel}
+  />
+);
 
 function Dashboard() {
   // State untuk metrik
