@@ -15,7 +15,7 @@ const BADGE_STYLES = {
   yellow: "bg-yellow-100 text-yellow-700",
   red: "bg-red-100 text-red-700",
   blue: "bg-blue-100 text-blue-700",
-  slate: "bg-slate-100 text-slate-600",
+  slate: "bg-slate-100 text-slate-800",
   indigo: "bg-indigo-100 text-indigo-700",
 };
 
@@ -101,7 +101,7 @@ const EnhancedCard = ({
         {icon && (
           <div className={`p-2.5 rounded-full text-white ${color}`}>{icon}</div>
         )}
-        <p className="text-sm text-slate-500 font-medium">{title}</p>
+        <p className="text-sm text-slate-700 font-medium">{title}</p>
       </div>
 
       {/* Circular progress (opsional) */}
@@ -116,7 +116,7 @@ const EnhancedCard = ({
 
       {/* Subtitle (opsional) */}
       {subtitle && (
-        <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+        <p className="text-xs text-slate-600 mt-0.5">{subtitle}</p>
       )}
 
       {/* Badge status (opsional) */}
@@ -146,7 +146,7 @@ const EnhancedCard = ({
             {trendChange >= 0 ? "+" : ""}
             {trendChange}%
           </span>
-          <span className="text-slate-400 font-normal">{trendLabel}</span>
+          <span className="text-slate-600 font-normal">{trendLabel}</span>
         </div>
       )}
 

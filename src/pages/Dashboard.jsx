@@ -858,7 +858,7 @@ function Dashboard() {
             <div className="p-2.5 rounded-full text-white bg-indigo-500">
               <FaBullseye size={18} />
             </div>
-            <p className="text-sm text-slate-500 font-medium">Target Bulanan</p>
+            <p className="text-sm text-slate-700 font-medium">Target Bulanan</p>
             {canEditTarget && !isEditingTarget && (
               <button
                 onClick={() => {
@@ -920,7 +920,7 @@ function Dashboard() {
           })()}
 
           {/* Sisa Target */}
-          <p className="text-xs text-slate-500 mb-1">
+          <p className="text-xs text-slate-700 mb-1">
             {monthlyTarget > 0 && metrics.salesValue < monthlyTarget
               ? <>Sisa <span className="font-semibold text-slate-700">Rp {new Intl.NumberFormat("id-ID").format(monthlyTarget - metrics.salesValue)}</span> lagi</>
               : <span className="font-semibold text-green-600">Target Tercapai!</span>
@@ -946,11 +946,11 @@ function Dashboard() {
               const estimatedDate = new Date(today);
               estimatedDate.setDate(estimatedDate.getDate() + hariButuh);
               const tglStr = format(estimatedDate, "d MMMM yyyy", { locale: id });
-              return <p className="text-xs text-slate-500 mb-1">Diperkirakan tercapai <span className="font-medium text-slate-700">{tglStr}</span></p>;
+              return <p className="text-xs text-slate-700 mb-1">Diperkirakan tercapai <span className="font-medium text-slate-700">{tglStr}</span></p>;
             }
             const sisaTarget = monthlyTarget - metrics.salesValue;
             const kecepatanDibutuhkan = Math.ceil(sisaTarget / sisaHari);
-            return <p className="text-xs text-slate-500 mb-1">Perlu <span className="font-medium text-amber-600">Rp {new Intl.NumberFormat("id-ID").format(kecepatanDibutuhkan)}/hari</span> selama {sisaHari} hari lagi</p>;
+            return <p className="text-xs text-slate-700 mb-1">Perlu <span className="font-medium text-amber-600">Rp {new Intl.NumberFormat("id-ID").format(kecepatanDibutuhkan)}/hari</span> selama {sisaHari} hari lagi</p>;
           })()}
 
           {/* Mini Trend vs Bulan Lalu */}
@@ -1007,7 +1007,7 @@ function Dashboard() {
                   </button>
                 </div>
               ) : (
-                <span className="text-slate-500">
+                <span className="text-slate-700">
                   Target: Rp {new Intl.NumberFormat("id-ID").format(monthlyTarget)}
                 </span>
               )}
@@ -1065,7 +1065,7 @@ function Dashboard() {
                 data={brandSalesChartData}
               />
             ) : (
-              <p className="text-slate-400 text-sm">Tidak ada data</p>
+              <p className="text-slate-600 text-sm">Tidak ada data</p>
             )}
           </div>
         </div>
@@ -1098,7 +1098,7 @@ function Dashboard() {
 
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-2">Jam Sibuk</h2>
-          <p className="text-sm text-slate-500 mb-2">
+          <p className="text-sm text-slate-700 mb-2">
             Hanya jam dengan transaksi (06:00–23:59 WIB)
           </p>
           {(() => {
@@ -1149,14 +1149,14 @@ function Dashboard() {
                 data={peakHoursChartData}
               />
             ) : (
-              <p className="text-slate-400 text-sm">Tidak ada data</p>
+              <p className="text-slate-600 text-sm">Tidak ada data</p>
             )}
           </div>
         </div>
 
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-1">Tren Mingguan</h2>
-          <p className="text-xs text-slate-400 mb-4">
+          <p className="text-xs text-slate-600 mb-4">
             Minggu ini vs minggu lalu
           </p>
           <div className="flex flex-col justify-center h-56">
@@ -1170,7 +1170,7 @@ function Dashboard() {
                   {/* Bar Minggu Ini */}
                   <div className="mb-3">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-medium text-slate-600">Minggu ini</span>
+                      <span className="text-xs font-medium text-slate-800">Minggu ini</span>
                       <span className="text-xs font-bold text-slate-800">
                         Rp {new Intl.NumberFormat("id-ID").format(thisWeek)}
                       </span>
@@ -1186,8 +1186,8 @@ function Dashboard() {
                   {/* Bar Minggu Lalu */}
                   <div className="mb-4">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-medium text-slate-400">Minggu lalu</span>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs font-medium text-slate-600">Minggu lalu</span>
+                      <span className="text-xs text-slate-600">
                         Rp {new Intl.NumberFormat("id-ID").format(lastWeek)}
                       </span>
                     </div>
@@ -1215,7 +1215,7 @@ function Dashboard() {
                         {weeklyTrend.change >= 0 ? "+" : ""}{weeklyTrend.change}%
                       </span>
                     )}
-                    <span className="text-xs text-slate-400">vs minggu lalu</span>
+                    <span className="text-xs text-slate-600">vs minggu lalu</span>
                   </div>
                 </>
               );
@@ -1230,7 +1230,7 @@ function Dashboard() {
           <h2 className="text-lg font-semibold mb-2">
             Profit Margin per Kategori
           </h2>
-          <p className="text-sm text-slate-500 mb-4">
+          <p className="text-sm text-slate-700 mb-4">
             Persentase keuntungan per kategori
           </p>
           <div className="h-72">
@@ -1258,7 +1258,7 @@ function Dashboard() {
                 data={profitMarginChartData}
               />
             ) : (
-              <p className="text-slate-400 text-sm">Tidak ada data</p>
+              <p className="text-slate-600 text-sm">Tidak ada data</p>
             )}
           </div>
         </div>
@@ -1267,7 +1267,7 @@ function Dashboard() {
           <h2 className="text-lg font-semibold mb-2">
             Pembelian vs Penjualan
           </h2>
-          <p className="text-sm text-slate-500 mb-4">
+          <p className="text-sm text-slate-700 mb-4">
             Perbandingan arus kas harian
           </p>
           <div className="h-72">
@@ -1298,7 +1298,7 @@ function Dashboard() {
                 data={purchaseVsSalesChartData}
               />
             ) : (
-              <p className="text-slate-400 text-sm">Tidak ada data</p>
+              <p className="text-slate-600 text-sm">Tidak ada data</p>
             )}
           </div>
         </div>
@@ -1319,7 +1319,7 @@ function Dashboard() {
             <h2 className="text-lg font-semibold mb-2">
               Top 20 Produk Terlaris
             </h2>
-            <p className="text-sm text-slate-500 mb-4">
+            <p className="text-sm text-slate-700 mb-4">
               Berdasarkan kuantitas (semua kategori)
             </p>
             <Link
@@ -1346,7 +1346,7 @@ function Dashboard() {
             <h2 className="text-lg font-semibold mb-2">
               Top 20 Produk Pilok Terlaris
             </h2>
-            <p className="text-sm text-slate-500 mb-4">
+            <p className="text-sm text-slate-700 mb-4">
               Berdasarkan kuantitas (kategori Pilok)
             </p>
             <Link
@@ -1405,7 +1405,7 @@ function Dashboard() {
                             </span>
                           )}
                         </div>
-                        <p className="text-slate-400 text-xs">
+                        <p className="text-slate-600 text-xs">
                           {new Date(activity.created_at).toLocaleTimeString(
                             "id-ID",
                             { hour: "2-digit", minute: "2-digit" },
@@ -1423,15 +1423,15 @@ function Dashboard() {
                             const name = item.nama || `(Item Grosir)`;
                             const brand = item.merek || "";
                             return (
-                              <li key={key} className="text-xs text-slate-500">
-                                {quantity}x {name} {brand && <span className="text-slate-400">({brand})</span>}
+                              <li key={key} className="text-xs text-slate-700">
+                                {quantity}x {name} {brand && <span className="text-slate-600">({brand})</span>}
                               </li>
                             );
                           })}
                           {activity.items.length > 2 && (
                             <li
                               key={`more-${activity.id}`}
-                              className="text-xs text-slate-400 italic"
+                              className="text-xs text-slate-600 italic"
                             >
                               ...dan {activity.items.length - 2} item lainnya
                             </li>
@@ -1448,7 +1448,7 @@ function Dashboard() {
                   );
                 })
               ) : (
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-600">
                   Tidak ada transaksi pada rentang ini.
                 </p>
               )}
@@ -1491,7 +1491,7 @@ function Dashboard() {
                           <p className="font-bold text-slate-800 text-sm">
                             {review.products?.nama || "Produk"}
                           </p>
-                          <p className="text-[11px] text-slate-400">
+                          <p className="text-[11px] text-slate-600">
                             {review.products?.kode} {review.products?.merek && `· ${review.products?.merek}`}
                             {review.products?.kategori && ` · ${review.products?.kategori}`}
                           </p>
@@ -1504,12 +1504,12 @@ function Dashboard() {
                       {/* Price Comparison Grid */}
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-slate-50 rounded-lg p-2.5 mb-2.5">
                         <div className="flex justify-between items-center">
-                          <span className="text-[11px] text-slate-400">Harga Beli</span>
-                          <span className="text-[11px] text-slate-400 line-through">{formatRupiah(oldBel)}</span>
+                          <span className="text-[11px] text-slate-600">Harga Beli</span>
+                          <span className="text-[11px] text-slate-600 line-through">{formatRupiah(oldBel)}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-[11px] text-slate-400">Harga Jual</span>
-                          <span className="text-[11px] text-slate-400 line-through">{formatRupiah(oldJual)}</span>
+                          <span className="text-[11px] text-slate-600">Harga Jual</span>
+                          <span className="text-[11px] text-slate-600 line-through">{formatRupiah(oldJual)}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold text-amber-600">{formatRupiah(newBel)}</span>
@@ -1530,10 +1530,10 @@ function Dashboard() {
                       {/* Margin Comparison */}
                       <div className="flex items-center gap-3 mb-2 px-1">
                         <div className="flex items-center gap-1.5">
-                          <FaCalculator className="text-slate-400" size={10} />
-                          <span className="text-[11px] text-slate-400">Margin:</span>
-                          <span className="text-[11px] font-semibold text-slate-500">{oldMargin}%</span>
-                          <span className="text-[10px] text-slate-300">→</span>
+                          <FaCalculator className="text-slate-600" size={10} />
+                          <span className="text-[11px] text-slate-600">Margin:</span>
+                          <span className="text-[11px] font-semibold text-slate-700">{oldMargin}%</span>
+                          <span className="text-[10px] text-slate-500">→</span>
                           <span className={`text-[11px] font-bold ${Number(newMargin) >= Number(oldMargin) ? "text-emerald-600" : Number(marginDrop) > 5 ? "text-red-500" : "text-amber-600"}`}>
                             {newMargin}%
                           </span>
@@ -1575,7 +1575,7 @@ function Dashboard() {
                 })}
               </ul>
               {pendingPriceReviews.length > 5 && (
-                <p className="text-xs text-slate-400 text-center mt-3">
+                <p className="text-xs text-slate-600 text-center mt-3">
                   +{pendingPriceReviews.length - 5} produk lainnya
                 </p>
               )}
@@ -1609,7 +1609,7 @@ function Dashboard() {
                             <p className="font-semibold text-sm text-slate-800">
                               {customer.nama_pelanggan}
                             </p>
-                            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-full">
                               {customer.tingkatan}
                             </span>
                           </div>
@@ -1634,7 +1634,7 @@ function Dashboard() {
                 })}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400 text-center py-4">
+              <p className="text-sm text-slate-600 text-center py-4">
                 Belum ada data pelanggan.
               </p>
             )}
@@ -1652,7 +1652,7 @@ function Dashboard() {
                 {outOfStockCount}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mb-2">
+            <p className="text-xs text-slate-600 mb-2">
               Diurutkan dari terlaris (total terjual sepanjang waktu)
             </p>
 
@@ -1672,7 +1672,7 @@ function Dashboard() {
                     : "bg-yellow-400";
               return (
                 <div className="mb-4">
-                  <div className="flex justify-between text-xs text-slate-400 mb-1">
+                  <div className="flex justify-between text-xs text-slate-600 mb-1">
                     <span>{pct}% dari total produk</span>
                     <span>
                       {outOfStockCount} / {total}
@@ -1699,7 +1699,7 @@ function Dashboard() {
                       <p className="font-medium text-slate-700">
                         {product.nama}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-slate-600">
                         {product.kode} {product.merek && `· ${product.merek}`}
                         {product.ukuran && ` · ${product.ukuran}`}
                       </p>
@@ -1708,7 +1708,7 @@ function Dashboard() {
                       <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">
                         Stok 0
                       </span>
-                      <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                      <span className="text-[10px] text-slate-600 whitespace-nowrap">
                         Terjual: {product.total_terjual ?? 0}
                       </span>
                     </div>
@@ -1716,7 +1716,7 @@ function Dashboard() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400 text-center py-4">
+              <p className="text-sm text-slate-600 text-center py-4">
                 Semua produk tersedia.
               </p>
             )}
