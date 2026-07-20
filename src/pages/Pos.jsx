@@ -128,13 +128,31 @@ const CartComponent = ({
                 <FiTrash2 size={18} />
               </button>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5">
+            <div className="flex items-center gap-2 text-sm text-slate-500 mt-0.5 flex-wrap">
               {item.ukuran && <span>{item.ukuran}</span>}
               {item.ukuran && <span>·</span>}
-              <span>
-                Rp{" "}
-                {new Intl.NumberFormat("id-ID").format(item.harga_jual)}
+              <span className="flex items-center gap-1">
+                <span>Rp</span>
+                <input
+                  type="number"
+                  value={item.harga_jual}
+                  min={item.harga_jual_default ?? item.harga_jual}
+                  max={(item.harga_jual_default ?? item.harga_jual) + 10000}
+                  onChange={(e) =>
+                    handleCartChange(item.id, "harga_jual", e.target.value)
+                  }
+                  className="w-24 text-center font-semibold border rounded bg-white px-1 py-0.5"
+                />
               </span>
+              {item.harga_jual_default != null &&
+                item.harga_jual > item.harga_jual_default && (
+                  <span className="text-[10px] font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full">
+                    +Rp{" "}
+                    {new Intl.NumberFormat("id-ID").format(
+                      item.harga_jual - item.harga_jual_default,
+                    )}
+                  </span>
+                )}
               <span>·</span>
               {item.stok > 0 ? (
                 <span className={item.stok <= (item.stok_min || 5) ? "text-amber-600 font-medium" : ""}>
@@ -466,6 +484,7 @@ function Pos() {
           quantity: 1,
           discountType: "Tidak Ada",
           discountValue: "",
+          harga_jual_default: product.harga_jual,
         },
       ];
     });
@@ -495,6 +514,7 @@ function Pos() {
           quantity: finalQty,
           discountType: "Tidak Ada",
           discountValue: "",
+          harga_jual_default: product.harga_jual,
         },
       ];
     });
@@ -532,6 +552,19 @@ function Pos() {
             } else {
               uItem.quantity = numVal;
             }
+          }
+          if (field === "harga_jual") {
+            const base = item.harga_jual_default ?? item.harga_jual ?? 0;
+            const maxHarga = base + 10000;
+            let numVal = Number(String(value).replace(/[^0-9]/g, "")) || 0;
+            if (numVal < base) {
+              numVal = base;
+              alert("Harga jual hanya boleh naik dari harga awal.");
+            } else if (numVal > maxHarga) {
+              numVal = maxHarga;
+              alert("Harga jual hanya boleh naik maksimal Rp10.000.");
+            }
+            uItem.harga_jual = numVal;
           }
           return uItem;
         }
@@ -661,7 +694,12 @@ function Pos() {
     ) {
       return;
     }
-    setCart(heldTransaction.cart_data || []);
+    setCart(
+      (heldTransaction.cart_data || []).map((i) => ({
+        ...i,
+        harga_jual_default: i.harga_jual_default ?? i.harga_jual,
+      })),
+    );
     setSelectedCustomer(heldTransaction.customer_data || null);
     const { error } = await supabase
       .from("held_transactions")
