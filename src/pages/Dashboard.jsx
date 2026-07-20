@@ -593,8 +593,14 @@ function Dashboard() {
       });
 
       // --- 3. Jam Sibuk ---
+      // Tampilkan hanya jam operasional toko: 06:00 - 23:00 WIB.
+      const OP_HOUR_START = 6;
+      const OP_HOUR_END = 23;
       const peakData = peakHoursRes.data || [];
-      const allHours = Array.from({ length: 24 }, (_, i) => i);
+      const allHours = Array.from(
+        { length: OP_HOUR_END - OP_HOUR_START + 1 },
+        (_, i) => OP_HOUR_START + i,
+      );
       const peakMap = Object.fromEntries(peakData.map((r) => [r.jam, r.jumlah_transaksi]));
       const peakValues = allHours.map((h) => Number(peakMap[h] || 0));
       const peakMax = Math.max(...peakValues);
@@ -1092,7 +1098,7 @@ function Dashboard() {
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-2">Jam Sibuk</h2>
           <p className="text-sm text-slate-500 mb-2">
-            Distribusi transaksi per jam (WIB)
+            Distribusi transaksi per jam (06:00–23:00 WIB)
           </p>
           {(() => {
             const vals = peakHoursChartData.datasets[0]?.data || [];
