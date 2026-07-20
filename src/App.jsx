@@ -32,6 +32,7 @@ import DetailPesananOnlinePage from "./pages/DetailPesananOnline";
 import VoucherListPage from "./pages/VoucherListPage";
 import VoucherForm from "./pages/VoucherForm";
 import ManajemenModelAI from "./pages/ManajemenModelAI.jsx";
+import ManajemenMargin from "./pages/ManajemenMargin.jsx";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -161,6 +162,7 @@ function App() {
             <Route path="histori-transaksi" element={<TransactionHistory />} />
             <Route path="histori-stok" element={<StockHistory />} />
             <Route path="manajemen-ai" element={<ManajemenModelAI />} />
+            <Route path="manajemen-margin" element={<ManajemenMargin />} />
             <Route path="*" element={<Dashboard />} />
           </Route>
         </>

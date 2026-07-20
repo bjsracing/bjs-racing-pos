@@ -33,9 +33,11 @@ import {
   FaArrowUp,
   FaArrowDown,
 } from "react-icons/fa";
+import { FiTrendingUp } from "react-icons/fi";
 import { updateAiConfig, getUserRole, fetchAiConfig } from "../config/aiConfig.js";
 import EnhancedCard from "../components/EnhancedCard.jsx";
 import AiAdvisorWidget from "../components/AiAdvisorWidget.jsx";
+import { getPendingPriceReviews, formatRupiah } from "../lib/dynamicPricing.js";
 import DatePicker, { registerLocale } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -206,6 +208,7 @@ function Dashboard() {
   const [userRole, setUserRole] = useState(null);
   const [savingTarget, setSavingTarget] = useState(false);
   const [advisorEnabled, setAdvisorEnabled] = useState(false);
+  const [pendingPriceReviews, setPendingPriceReviews] = useState([]);
 
   // State untuk 5 chart baru (client-side aggregation)
   const [brandSalesChartData, setBrandSalesChartData] = useState({
@@ -664,6 +667,19 @@ function Dashboard() {
       }
     };
     loadAdvisorFlag();
+  }, []);
+
+  // Fetch pending price reviews
+  useEffect(() => {
+    const fetchPendingReviews = async () => {
+      try {
+        const reviews = await getPendingPriceReviews();
+        setPendingPriceReviews(reviews);
+      } catch (_) {
+        // silent
+      }
+    };
+    fetchPendingReviews();
   }, []);
 
   const canEditTarget = userRole === "admin" || userRole === "owner";
@@ -1376,6 +1392,63 @@ function Dashboard() {
               )}
             </ul>
           </div>
+
+          {/* Harga Perlu Review Card */}
+          {pendingPriceReviews.length > 0 && (
+            <div className="bg-white p-4 md:p-6 rounded-lg shadow">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <FiTrendingUp className="text-amber-500" />
+                  Harga Perlu Review
+                </h2>
+                <span className="bg-amber-100 text-amber-700 text-sm font-bold px-2 py-1 rounded-full">
+                  {pendingPriceReviews.length}
+                </span>
+              </div>
+              <ul className="space-y-2 max-h-48 overflow-y-auto">
+                {pendingPriceReviews.slice(0, 5).map((review) => (
+                  <li
+                    key={review.id}
+                    className="text-sm border-b border-slate-100 pb-2 last:border-b-0 rounded-lg px-3 py-2 -mx-1 transition-all duration-200 hover:bg-slate-50 hover:shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-slate-800">
+                          {review.products?.nama || "Produk"}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {review.products?.kode} {review.products?.merek && `· ${review.products?.merek}`}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-slate-400 line-through">
+                          {formatRupiah(review.old_harga_beli)}
+                        </p>
+                        <p className="text-sm font-bold text-amber-600">
+                          {formatRupiah(review.new_harga_beli)}
+                        </p>
+                      </div>
+                    </div>
+                    {review.recommended_price && (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">
+                          Rekomendasi: {formatRupiah(review.recommended_price)}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {review.ai_confidence === "high" ? "Tinggi" : review.ai_confidence === "medium" ? "Sedang" : "Rendah"}
+                        </span>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {pendingPriceReviews.length > 5 && (
+                <p className="text-xs text-slate-400 text-center mt-2">
+                  +{pendingPriceReviews.length - 5} produk lainnya
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="bg-white p-4 md:p-6 rounded-lg shadow">
             <div className="flex items-center justify-between mb-4">

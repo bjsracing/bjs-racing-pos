@@ -88,7 +88,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { contents, generationConfig, systemInstruction, provider, modelConfig } =
+    const { contents, generationConfig, systemInstruction, provider, modelConfig, useGoogleSearch } =
       await req.json();
 
     if (!contents || !Array.isArray(contents)) {
@@ -161,6 +161,7 @@ Deno.serve(async (req: Request) => {
     const body: Record<string, unknown> = { contents };
     if (generationConfig) body.generationConfig = generationConfig;
     if (systemInstruction) body.systemInstruction = systemInstruction;
+    if (useGoogleSearch) body.tools = [{ google_search: {} }];
 
     const response = await fetch(
       `${GEMINI_BASE_URL}/${geminiModel}:generateContent?key=${GEMINI_API_KEY}`,

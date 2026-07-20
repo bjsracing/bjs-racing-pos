@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DynamicPricingBadge from "./DynamicPricingBadge.jsx";
 
 function ProductModal({
   isOpen,
@@ -29,10 +30,12 @@ function ProductModal({
   };
 
   const [product, setProduct] = useState(initialProductState);
+  const [originalHargaBeli, setOriginalHargaBeli] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       if (productToEdit) {
+        setOriginalHargaBeli(productToEdit.harga_beli);
         setProduct({
           id: productToEdit.id,
           kode: productToEdit.kode || "",
@@ -54,6 +57,7 @@ function ProductModal({
         });
       } else {
         setProduct(initialProductState);
+        setOriginalHargaBeli(null);
       }
     }
   }, [productToEdit, isOpen]);
@@ -317,6 +321,16 @@ function ProductModal({
                   className="w-full p-2 border rounded"
                   required
                 />
+                {productToEdit && originalHargaBeli !== null && product.harga_beli && Number(product.harga_beli) !== originalHargaBeli && (
+                  <div className="mt-2">
+                    <DynamicPricingBadge
+                      productId={product.id}
+                      newHargaBeli={Number(product.harga_beli)}
+                      productData={productToEdit}
+                      onPriceUpdated={() => setOriginalHargaBeli(Number(product.harga_beli))}
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <label

@@ -56,7 +56,7 @@ export async function callGeminiProxy(payload, signal) {
       Authorization: `Bearer ${ANON_KEY}`,
       apikey: ANON_KEY,
     },
-    body: JSON.stringify({ ...payload, modelConfig }),
+    body: JSON.stringify({ ...payload, modelConfig, useGoogleSearch: payload.useGoogleSearch || false }),
     signal,
   });
 
