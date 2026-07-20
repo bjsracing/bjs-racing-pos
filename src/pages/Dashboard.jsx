@@ -593,19 +593,20 @@ function Dashboard() {
       });
 
       // --- 3. Jam Sibuk ---
-      // Tampilkan hanya jam operasional toko: 06:00 - 23:00 WIB.
+      // Batasi sumber data ke jam operasional toko: 06:00 - 23:59 WIB,
+      // lalu tampilkan HANYA jam yang benar-benar ada transaksinya (>0).
       const OP_HOUR_START = 6;
       const OP_HOUR_END = 23;
       const peakData = peakHoursRes.data || [];
-      const allHours = Array.from(
+      const peakMap = Object.fromEntries(peakData.map((r) => [r.jam, r.jumlah_transaksi]));
+      const activeHours = Array.from(
         { length: OP_HOUR_END - OP_HOUR_START + 1 },
         (_, i) => OP_HOUR_START + i,
-      );
-      const peakMap = Object.fromEntries(peakData.map((r) => [r.jam, r.jumlah_transaksi]));
-      const peakValues = allHours.map((h) => Number(peakMap[h] || 0));
-      const peakMax = Math.max(...peakValues);
+      ).filter((h) => Number(peakMap[h] || 0) > 0);
+      const peakValues = activeHours.map((h) => Number(peakMap[h] || 0));
+      const peakMax = Math.max(...peakValues, 0);
       setPeakHoursChartData({
-        labels: allHours.map((h) => `${String(h).padStart(2, "0")}:00`),
+        labels: activeHours.map((h) => `${String(h).padStart(2, "0")}:00`),
         datasets: [
           {
             label: "Jumlah Transaksi",
@@ -1098,7 +1099,7 @@ function Dashboard() {
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-2">Jam Sibuk</h2>
           <p className="text-sm text-slate-500 mb-2">
-            Distribusi transaksi per jam (06:00–23:00 WIB)
+            Hanya jam dengan transaksi (06:00–23:59 WIB)
           </p>
           {(() => {
             const vals = peakHoursChartData.datasets[0]?.data || [];
@@ -1136,8 +1137,7 @@ function Dashboard() {
                       ticks: {
                         font: { size: 8 },
                         maxRotation: 45,
-                        callback: function (val, index) {
-                          if (index % 3 !== 0) return "";
+                        callback: function (val) {
                           const label = this.getLabelForValue(val);
                           return label ? `${label} WIB` : "";
                         },
