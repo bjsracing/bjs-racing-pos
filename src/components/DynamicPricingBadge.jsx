@@ -130,7 +130,10 @@ function DynamicPricingBadge({ productId, newHargaBeli, productData, onPriceUpda
   return (
     <>
       <button
-        onClick={() => {
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
           setIsOpen(true);
           if (!analysisResult && !isAnalyzing) handleAnalyze();
         }}
