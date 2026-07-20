@@ -89,7 +89,7 @@ function DynamicPricingBadge({ productId, newHargaBeli, productData, onPriceUpda
         ai_reason: analysisResult.reason,
         ai_confidence: analysisResult.confidence,
         source: "manual_edit",
-        action: "accepted",
+        action: "pending",
       });
 
       if (onPriceAccepted) onPriceAccepted(finalPrice);
