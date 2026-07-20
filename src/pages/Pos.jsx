@@ -135,11 +135,18 @@ const CartComponent = ({
                 <span>Rp</span>
                 <input
                   type="number"
-                  value={item.harga_jual}
+                  value={
+                    item._harga_input !== undefined
+                      ? item._harga_input
+                      : item.harga_jual
+                  }
                   min={item.harga_jual_default ?? item.harga_jual}
                   max={(item.harga_jual_default ?? item.harga_jual) + 10000}
                   onChange={(e) =>
                     handleCartChange(item.id, "harga_jual", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleCartChange(item.id, "harga_jual_blur", e.target.value)
                   }
                   className="w-24 text-center font-semibold border rounded bg-white px-1 py-0.5"
                 />
@@ -554,6 +561,12 @@ function Pos() {
             }
           }
           if (field === "harga_jual") {
+            // Saat mengetik: simpan nilai mentah ke field sementara agar user
+            // bebas menghapus/mengetik tanpa langsung divalidasi (hindari alert tiap ketikan).
+            uItem._harga_input = value;
+          }
+          if (field === "harga_jual_blur") {
+            // Validasi & clamp hanya saat selesai edit (onBlur).
             const base = item.harga_jual_default ?? item.harga_jual ?? 0;
             const maxHarga = base + 10000;
             let numVal = Number(String(value).replace(/[^0-9]/g, "")) || 0;
@@ -565,6 +578,7 @@ function Pos() {
               alert("Harga jual hanya boleh naik maksimal Rp10.000.");
             }
             uItem.harga_jual = numVal;
+            delete uItem._harga_input;
           }
           return uItem;
         }
