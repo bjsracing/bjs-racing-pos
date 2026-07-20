@@ -33,11 +33,11 @@ import {
   FaArrowUp,
   FaArrowDown,
 } from "react-icons/fa";
-import { FiTrendingUp } from "react-icons/fi";
+import { FiTrendingUp, FiCheck, FiX, FiMessageSquare } from "react-icons/fi";
 import { updateAiConfig, getUserRole, fetchAiConfig } from "../config/aiConfig.js";
 import EnhancedCard from "../components/EnhancedCard.jsx";
 import AiAdvisorWidget from "../components/AiAdvisorWidget.jsx";
-import { getPendingPriceReviews, formatRupiah } from "../lib/dynamicPricing.js";
+import { getPendingPriceReviews, updatePriceHistoryAction, formatRupiah } from "../lib/dynamicPricing.js";
 import DatePicker, { registerLocale } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -681,6 +681,15 @@ function Dashboard() {
     };
     fetchPendingReviews();
   }, []);
+
+  const handleReviewAction = async (reviewId, action) => {
+    try {
+      await updatePriceHistoryAction(reviewId, action);
+      setPendingPriceReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    } catch (err) {
+      console.error("Gagal update review:", err);
+    }
+  };
 
   const canEditTarget = userRole === "admin" || userRole === "owner";
   const canUseAdvisor =
@@ -1393,7 +1402,7 @@ function Dashboard() {
             </ul>
           </div>
 
-          {/* Harga Perlu Review Card */}
+          {/* Harga Perlu Review Card — Enhanced */}
           {pendingPriceReviews.length > 0 && (
             <div className="bg-white p-4 md:p-6 rounded-lg shadow">
               <div className="flex items-center justify-between mb-4">
@@ -1405,45 +1414,115 @@ function Dashboard() {
                   {pendingPriceReviews.length}
                 </span>
               </div>
-              <ul className="space-y-2 max-h-48 overflow-y-auto">
-                {pendingPriceReviews.slice(0, 5).map((review) => (
-                  <li
-                    key={review.id}
-                    className="text-sm border-b border-slate-100 pb-2 last:border-b-0 rounded-lg px-3 py-2 -mx-1 transition-all duration-200 hover:bg-slate-50 hover:shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-slate-800">
-                          {review.products?.nama || "Produk"}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {review.products?.kode} {review.products?.merek && `· ${review.products?.merek}`}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-slate-400 line-through">
-                          {formatRupiah(review.old_harga_beli)}
-                        </p>
-                        <p className="text-sm font-bold text-amber-600">
-                          {formatRupiah(review.new_harga_beli)}
-                        </p>
-                      </div>
-                    </div>
-                    {review.recommended_price && (
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">
-                          Rekomendasi: {formatRupiah(review.recommended_price)}
+              <ul className="space-y-3 max-h-[520px] overflow-y-auto">
+                {pendingPriceReviews.slice(0, 5).map((review) => {
+                  const oldBel = review.old_harga_beli || 0;
+                  const newBel = review.new_harga_beli || 0;
+                  const oldJual = review.old_harga_jual || 0;
+                  const newJual = review.new_harga_jual || review.recommended_price || 0;
+                  const oldMargin = oldBel > 0 && oldJual > 0 ? ((oldJual - oldBel) / oldJual * 100).toFixed(1) : 0;
+                  const newMargin = newBel > 0 && newJual > 0 ? ((newJual - newBel) / newJual * 100).toFixed(1) : 0;
+                  const conf = review.ai_confidence || "medium";
+                  const confColor = conf === "high" ? "bg-emerald-100 text-emerald-700 border-emerald-300" : conf === "medium" ? "bg-amber-100 text-amber-700 border-amber-300" : "bg-red-100 text-red-700 border-red-300";
+                  const confLabel = conf === "high" ? "Tinggi" : conf === "medium" ? "Sedang" : "Rendah";
+                  const marginDrop = oldMargin > 0 && newMargin > 0 ? (oldMargin - newMargin).toFixed(1) : 0;
+
+                  return (
+                    <li
+                      key={review.id}
+                      className="border border-slate-100 rounded-xl p-3.5 transition-all duration-200 hover:shadow-md"
+                    >
+                      {/* Product Info */}
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">
+                            {review.products?.nama || "Produk"}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            {review.products?.kode} {review.products?.merek && `· ${review.products?.merek}`}
+                            {review.products?.kategori && ` · ${review.products?.kategori}`}
+                          </p>
+                        </div>
+                        <span className={`text-[10px] font-semibold border px-2 py-0.5 rounded-full ${confColor}`}>
+                          {confLabel}
                         </span>
-                        <span className="text-[10px] text-slate-400">
-                          {review.ai_confidence === "high" ? "Tinggi" : review.ai_confidence === "medium" ? "Sedang" : "Rendah"}
-                        </span>
                       </div>
-                    )}
-                  </li>
-                ))}
+
+                      {/* Price Comparison Grid */}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-slate-50 rounded-lg p-2.5 mb-2.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-slate-400">Harga Beli</span>
+                          <span className="text-[11px] text-slate-400 line-through">{formatRupiah(oldBel)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-slate-400">Harga Jual</span>
+                          <span className="text-[11px] text-slate-400 line-through">{formatRupiah(oldJual)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-amber-600">{formatRupiah(newBel)}</span>
+                          <span className="text-[10px] text-red-400 font-semibold">
+                            +{((newBel - oldBel) / oldBel * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-blue-600">{formatRupiah(newJual)}</span>
+                          {oldJual > 0 && (
+                            <span className={`text-[10px] font-semibold ${newJual > oldJual ? "text-emerald-500" : "text-red-400"}`}>
+                              {newJual > oldJual ? "+" : ""}{((newJual - oldJual) / oldJual * 100).toFixed(0)}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Margin Comparison */}
+                      <div className="flex items-center gap-3 mb-2 px-1">
+                        <div className="flex items-center gap-1.5">
+                          <FaCalculator className="text-slate-400" size={10} />
+                          <span className="text-[11px] text-slate-400">Margin:</span>
+                          <span className="text-[11px] font-semibold text-slate-500">{oldMargin}%</span>
+                          <span className="text-[10px] text-slate-300">→</span>
+                          <span className={`text-[11px] font-bold ${Number(newMargin) >= Number(oldMargin) ? "text-emerald-600" : Number(marginDrop) > 5 ? "text-red-500" : "text-amber-600"}`}>
+                            {newMargin}%
+                          </span>
+                          {marginDrop > 0 && (
+                            <span className="text-[10px] text-red-400 font-medium">(-{marginDrop}pp)</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* AI Reason */}
+                      {review.ai_reason && (
+                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-2 mb-2.5">
+                          <div className="flex items-start gap-1.5">
+                            <FiMessageSquare className="text-blue-400 mt-0.5 flex-shrink-0" size={11} />
+                            <p className="text-[11px] text-blue-700 leading-relaxed">{review.ai_reason}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleReviewAction(review.id, "rejected")}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 px-3 rounded-lg border border-red-200 text-red-500 text-[11px] font-semibold hover:bg-red-50 transition-all"
+                        >
+                          <FiX size={12} />
+                          Tolak
+                        </button>
+                        <button
+                          onClick={() => handleReviewAction(review.id, "accepted")}
+                          className="flex-1 flex items-center justify-center gap-1 py-1.5 px-3 rounded-lg bg-emerald-500 text-white text-[11px] font-semibold hover:bg-emerald-600 shadow-sm transition-all"
+                        >
+                          <FiCheck size={12} />
+                          Terapkan
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
               {pendingPriceReviews.length > 5 && (
-                <p className="text-xs text-slate-400 text-center mt-2">
+                <p className="text-xs text-slate-400 text-center mt-3">
                   +{pendingPriceReviews.length - 5} produk lainnya
                 </p>
               )}
