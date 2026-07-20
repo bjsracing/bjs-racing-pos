@@ -328,6 +328,7 @@ function ProductModal({
                       newHargaBeli={Number(product.harga_beli)}
                       productData={productToEdit}
                       onPriceUpdated={() => setOriginalHargaBeli(Number(product.harga_beli))}
+                      onPriceAccepted={(newPrice) => setProduct(prev => ({ ...prev, harga_jual: String(newPrice) }))}
                     />
                   </div>
                 )}

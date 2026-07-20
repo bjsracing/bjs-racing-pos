@@ -10,7 +10,7 @@ import {
   formatRupiah,
 } from "../lib/dynamicPricing.js";
 
-function DynamicPricingBadge({ productId, newHargaBeli, productData, onPriceUpdated }) {
+function DynamicPricingBadge({ productId, newHargaBeli, productData, onPriceUpdated, onPriceAccepted }) {
   const [isOpen, setIsOpen] = useState(false);
   const [priceChange, setPriceChange] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -92,6 +92,7 @@ function DynamicPricingBadge({ productId, newHargaBeli, productData, onPriceUpda
         action: "accepted",
       });
 
+      if (onPriceAccepted) onPriceAccepted(finalPrice);
       if (onPriceUpdated) onPriceUpdated();
       setIsOpen(false);
       setPriceChange(null);
