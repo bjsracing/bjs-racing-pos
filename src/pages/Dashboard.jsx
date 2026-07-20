@@ -38,6 +38,29 @@ import { updateAiConfig, getUserRole, fetchAiConfig } from "../config/aiConfig.j
 import EnhancedCard from "../components/EnhancedCard.jsx";
 import AiAdvisorWidget from "../components/AiAdvisorWidget.jsx";
 import { getPendingPriceReviews, updatePriceHistoryAction, formatRupiah } from "../lib/dynamicPricing.js";
+
+// --- Konversi rentang tanggal ke batas hari WIB (UTC+7) ---
+// Supabase menyimpan created_at sebagai timestamptz (UTC). Agar filter
+// "Hari Ini"/"7 Hari"/"Bulan Ini"/custom terpotong tepat di tengah malam WIB
+// (bukan tengah malam UTC), kita bangun ISO UTC yang mewakili 00:00 / 23:59 WIB.
+const WIB_TZ = "Asia/Jakarta";
+function wibDateString(d) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: WIB_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(d)
+    .reduce((acc, x) => ((acc[x.type] = x.value), acc), {});
+  return `${parts.year}-${parts.month}-${parts.day}`; // YYYY-MM-DD
+}
+function wibStartISO(d) {
+  return new Date(`${wibDateString(d)}T00:00:00.000+07:00`).toISOString();
+}
+function wibEndISO(d) {
+  return new Date(`${wibDateString(d)}T23:59:59.999+07:00`).toISOString();
+}
 import DatePicker, { registerLocale } from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -283,8 +306,8 @@ function Dashboard() {
     if (!startDate || !endDate) return;
     setLoading(true);
     try {
-      const startTime = startOfDay(startDate).toISOString();
-      const endTime = endOfDay(endDate).toISOString();
+      const startTime = wibStartISO(startDate);
+      const endTime = wibEndISO(endDate);
 
       // Panggil semua data dari backend secara paralel
       const [
@@ -462,7 +485,7 @@ function Dashboard() {
         // Penjualan sepanjang waktu (untuk mengurutkan produk habis by qty terjual)
         supabase.rpc("get_best_selling_products", {
           start_date: new Date("2000-01-01T00:00:00Z").toISOString(),
-          end_date: endOfDay(new Date()).toISOString(),
+          end_date: wibEndISO(new Date()),
         }),
       ]);
 
@@ -511,16 +534,16 @@ function Dashboard() {
           end_date: endTime,
         }),
         supabase.rpc("get_dashboard_metrics", {
-          start_date: startOfDay(subDays(new Date(), 6)).toISOString(),
-          end_date: endOfDay(new Date()).toISOString(),
+          start_date: wibStartISO(subDays(new Date(), 6)),
+          end_date: wibEndISO(new Date()),
         }),
         supabase.rpc("get_dashboard_metrics", {
-          start_date: startOfDay(subDays(new Date(), 13)).toISOString(),
-          end_date: startOfDay(subDays(new Date(), 7)).toISOString(),
+          start_date: wibStartISO(subDays(new Date(), 13)),
+          end_date: wibStartISO(subDays(new Date(), 7)),
         }),
         supabase.rpc("get_dashboard_metrics", {
-          start_date: startOfMonth(subMonths(new Date(), 1)).toISOString(),
-          end_date: endOfMonth(subMonths(new Date(), 1)).toISOString(),
+          start_date: wibStartISO(startOfMonth(subMonths(new Date(), 1))),
+          end_date: wibEndISO(endOfMonth(subMonths(new Date(), 1))),
         }),
       ]);
 
@@ -576,7 +599,7 @@ function Dashboard() {
       const peakValues = allHours.map((h) => Number(peakMap[h] || 0));
       const peakMax = Math.max(...peakValues);
       setPeakHoursChartData({
-        labels: allHours.map((h) => `${h}:00`),
+        labels: allHours.map((h) => `${String(h).padStart(2, "0")}:00`),
         datasets: [
           {
             label: "Jumlah Transaksi",
@@ -1068,9 +1091,23 @@ function Dashboard() {
 
         <div className="bg-white p-4 md:p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-2">Jam Sibuk</h2>
-          <p className="text-sm text-slate-500 mb-4">
-            Distribusi transaksi per jam
+          <p className="text-sm text-slate-500 mb-2">
+            Distribusi transaksi per jam (WIB)
           </p>
+          {(() => {
+            const vals = peakHoursChartData.datasets[0]?.data || [];
+            const maxVal = Math.max(...vals, 0);
+            if (maxVal > 0) {
+              const peakIdx = vals.indexOf(maxVal);
+              const peakLabel = peakHoursChartData.labels[peakIdx] || "";
+              return (
+                <p className="text-xs font-semibold text-orange-600 bg-orange-50 inline-block px-2 py-0.5 rounded-full mb-2">
+                  ⏰ Jam Sibuk Utama: {peakLabel} WIB ({maxVal} trx)
+                </p>
+              );
+            }
+            return null;
+          })()}
           <div className="h-64">
             {peakHoursChartData.labels.length > 0 ? (
               <Bar
@@ -1079,6 +1116,14 @@ function Dashboard() {
                   maintainAspectRatio: false,
                   plugins: {
                     legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        title: (items) =>
+                          `Jam ${items[0]?.label} WIB`,
+                        label: (ctx) =>
+                          `${ctx.parsed.y} transaksi`,
+                      },
+                    },
                   },
                   scales: {
                     x: {
@@ -1086,7 +1131,9 @@ function Dashboard() {
                         font: { size: 8 },
                         maxRotation: 45,
                         callback: function (val, index) {
-                          return index % 3 === 0 ? this.getLabelForValue(val) : "";
+                          if (index % 3 !== 0) return "";
+                          const label = this.getLabelForValue(val);
+                          return label ? `${label} WIB` : "";
                         },
                       },
                     },
