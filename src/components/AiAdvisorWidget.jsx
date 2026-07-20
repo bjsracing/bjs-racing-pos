@@ -26,7 +26,7 @@ function AiAdvisorWidget({ startDate, endDate }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputText, setInputText] = useState("");
   const [conversation, setConversation] = useState([]); // {role, text}[] tampilan sesi (tidak dikirim balik ke AI)
-  const { ask, isLoading, error, setError } = useAiAdvisor();
+  const { ask, isLoading, error, setError, activeProvider } = useAiAdvisor();
 
   const abortRef = useRef(null);
   const scrollRef = useRef(null);
@@ -211,6 +211,26 @@ function AiAdvisorWidget({ startDate, endDate }) {
                   <FiSend size={16} />
                 </button>
               </div>
+              {activeProvider && (
+                <p className="text-[10px] text-slate-400 mt-1.5 px-1 flex items-center gap-1">
+                  <span className="text-base leading-none">🤖</span>
+                  <span className="font-medium">
+                    {activeProvider.model || activeProvider.provider}
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span
+                    className={
+                      activeProvider.provider === "nvidia"
+                        ? "text-green-500"
+                        : "text-blue-400"
+                    }
+                  >
+                    {activeProvider.provider === "nvidia"
+                      ? "NVIDIA NIM"
+                      : "Google Gemini"}
+                  </span>
+                </p>
+              )}
             </div>
           </div>
         </div>

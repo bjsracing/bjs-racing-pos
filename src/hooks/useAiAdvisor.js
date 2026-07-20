@@ -22,6 +22,7 @@ export function useAiAdvisor() {
   const [isLoading, setIsLoading] = useState(false);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState(null);
+  const [activeProvider, setActiveProvider] = useState(null);
 
   // Cache konteks per rentang tanggal agar tidak fetch berulang untuk rentang sama.
   const contextCacheRef = useRef({ key: null, data: null });
@@ -78,19 +79,32 @@ export function useAiAdvisor() {
             ],
             generationConfig: {
               temperature: 0.5,
-              maxOutputTokens: 800,
+              maxOutputTokens: 2048,
             },
           },
           signal,
         );
 
         const candidate = resData.candidates?.[0];
-        const text = candidate?.content?.parts?.[0]?.text?.trim();
+        // Gabungkan semua part teks (beberapa model memecah jawaban ke banyak part).
+        let text = (candidate?.content?.parts || [])
+          .map((p) => p?.text || "")
+          .join("")
+          .trim();
         if (!text) {
           throw new Error(
             "AI tidak menghasilkan jawaban. Kemungkinan konten diblokir filter keamanan. Coba lagi.",
           );
         }
+        // Jika jawaban terpotong karena batas token, beri penanda halus.
+        if (candidate?.finishReason === "MAX_TOKENS") {
+          text += " …";
+        }
+        const providerInfo = {
+          provider: resData._provider || "gemini",
+          model: resData._model || "",
+        };
+        setActiveProvider(providerInfo);
         setAnswer(text);
         return text;
       } catch (err) {
@@ -105,5 +119,5 @@ export function useAiAdvisor() {
     [fetchContext],
   );
 
-  return { ask, isLoading, answer, error, setError };
+  return { ask, isLoading, answer, error, setError, activeProvider };
 }
