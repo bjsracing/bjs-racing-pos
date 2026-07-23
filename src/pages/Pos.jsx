@@ -472,7 +472,9 @@ function Pos() {
     )
       return;
     setCart([]);
-    setSelectedCustomer({ id: null, nama_pelanggan: "Pelanggan Umum" });
+    setSelectedCustomer(null);
+    setCustomerSearch("");
+    setCustomers([]);
   };
   const handleAddToCart = (product) => {
     setCart((curr) => {
@@ -837,7 +839,7 @@ function Pos() {
           </div>
         </div>
         <div className="bg-white rounded-lg shadow p-2 mb-2">
-          {!selectedCustomer ? (
+          {selectedCustomer === null ? (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Pilih Pelanggan (Wajib)
@@ -852,33 +854,34 @@ function Pos() {
                   className="w-full p-2 pl-10 border rounded-lg"
                 />
               </div>
-              {customerSearch.trim() !== "" && (
-                <div className="bg-white border rounded-lg mt-1 absolute z-10 w-full md:w-1/3 shadow-lg">
-                  {customers.map((cust) => (
-                    <div
-                      key={cust.id}
-                      onClick={() => selectCustomer(cust)}
-                      className="p-3 hover:bg-slate-100 cursor-pointer border-b last:border-b-0"
-                    >
-                      <p className="font-semibold">{cust.nama_pelanggan}</p>
-                      <p className="text-sm text-slate-500">{cust.telepon}</p>
-                    </div>
-                  ))}
+              <div className="bg-white border rounded-lg mt-1 absolute z-10 w-full md:w-1/3 shadow-lg">
+                {customerSearch.trim() !== "" && customers.map((cust) => (
                   <div
-                    onClick={() =>
-                      selectCustomer({
-                        id: null,
-                        nama_pelanggan: "Pelanggan Umum",
-                      })
-                    }
-                    className="p-3 hover:bg-slate-100 cursor-pointer border-t-2 border-dashed"
+                    key={cust.id}
+                    onClick={() => selectCustomer(cust)}
+                    className="p-3 hover:bg-slate-100 cursor-pointer border-b last:border-b-0"
                   >
-                    <p className="font-semibold text-blue-600">
-                      Pilih Pelanggan Umum (Tunai)
-                    </p>
+                    <p className="font-semibold">{cust.nama_pelanggan}</p>
+                    <p className="text-sm text-slate-500">{cust.telepon}</p>
                   </div>
+                ))}
+                {customerSearch.trim() !== "" && customers.length === 0 && (
+                  <p className="p-3 text-sm text-slate-500">Pelanggan tidak ditemukan.</p>
+                )}
+                <div
+                  onClick={() =>
+                    selectCustomer({
+                      id: null,
+                      nama_pelanggan: "Pelanggan Umum",
+                    })
+                  }
+                  className="p-3 hover:bg-slate-100 cursor-pointer border-t-2 border-dashed"
+                >
+                  <p className="font-semibold text-blue-600">
+                    Pilih Pelanggan Umum (Tunai)
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
           ) : (
             <div className="flex justify-between items-center bg-green-100 p-3 rounded-lg">

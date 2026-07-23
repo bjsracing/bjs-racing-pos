@@ -20,6 +20,8 @@ const VoucherForm = () => {
         usage_limit: null,
         is_public: true,
         is_active: true,
+        target_type: "all_products",
+        target_value: "",
     });
     const [loading, setLoading] = useState(isEditMode);
     const [isSaving, setIsSaving] = useState(false);
@@ -42,7 +44,14 @@ const VoucherForm = () => {
                     const formattedDate = validUntilDate
                         .toISOString()
                         .slice(0, 16);
-                    setFormData({ ...data, valid_until: formattedDate });
+                    setFormData({
+                        ...data,
+                        valid_until: formattedDate,
+                        target_type: data.target_type || "all_products",
+                        target_value: Array.isArray(data.target_value)
+                            ? data.target_value.join(", ")
+                            : data.target_value || "",
+                    });
                 }
                 setLoading(false);
             };
@@ -62,10 +71,33 @@ const VoucherForm = () => {
         e.preventDefault();
         setIsSaving(true);
         try {
+            if (
+                formData.target_type &&
+                formData.target_type !== "all_products" &&
+                !String(formData.target_value || "")
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean).length
+            ) {
+                alert(
+                    "Voucher bertarget memerlukan minimal satu nilai target (kategori/merek/ID produk).",
+                );
+                setIsSaving(false);
+                return;
+            }
+
             const dataToSubmit = { ...formData };
             if (dataToSubmit.type !== "percentage") {
                 dataToSubmit.max_discount = null;
             }
+            // Serialisasi target_value (text[]) dari input comma-separated
+            dataToSubmit.target_value =
+                formData.target_type && formData.target_type !== "all_products"
+                    ? String(formData.target_value || "")
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                    : null;
 
             if (isEditMode) {
                 // Mode Edit: UPDATE data
@@ -158,6 +190,54 @@ const VoucherForm = () => {
                             <option value="free_shipping">Gratis Ongkir</option>
                         </select>
                     </div>
+                    <div>
+                        <label htmlFor="target_type">Target Voucher</label>
+                        <select
+                            name="target_type"
+                            value={formData.target_type}
+                            onChange={handleChange}
+                            className="w-full mt-1 p-2 border rounded-md bg-white"
+                        >
+                            <option value="all_products">
+                                Semua Produk
+                            </option>
+                            <option value="category">Kategori Tertentu</option>
+                            <option value="brand">Merek Tertentu</option>
+                            <option value="specific_product">
+                                Produk Tertentu
+                            </option>
+                        </select>
+                    </div>
+                    {formData.target_type &&
+                        formData.target_type !== "all_products" && (
+                            <div className="md:col-span-2">
+                                <label htmlFor="target_value">
+                                    Nilai Target (pisahkan dengan koma)
+                                </label>
+                                <input
+                                    type="text"
+                                    name="target_value"
+                                    value={formData.target_value}
+                                    onChange={handleChange}
+                                    placeholder={
+                                        formData.target_type === "category"
+                                            ? "Contoh: Pilok, Oli"
+                                            : formData.target_type === "brand"
+                                              ? "Contoh: Yamalube, Honda"
+                                              : "Masukkan ID produk, pisahkan dengan koma"
+                                    }
+                                    className="w-full mt-1 p-2 border rounded-md"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {formData.target_type === "category" &&
+                                        "Voucher hanya berlaku jika keranjang mengandung produk dengan kategori tersebut."}
+                                    {formData.target_type === "brand" &&
+                                        "Voucher hanya berlaku jika keranjang mengandung produk dengan merek tersebut."}
+                                    {formData.target_type === "specific_product" &&
+                                        "Voucher hanya berlaku jika keranjang mengandung produk dengan ID tersebut."}
+                                </p>
+                            </div>
+                        )}
                     <div>
                         <label htmlFor="discount_value">Nilai Diskon</label>
                         <input

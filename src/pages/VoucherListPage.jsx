@@ -49,6 +49,27 @@ const VoucherListPage = () => {
     return formatRupiah(voucher.discount_value);
   };
 
+  const renderTarget = (voucher) => {
+    const type = voucher.target_type || "all_products";
+    const values = Array.isArray(voucher.target_value)
+      ? voucher.target_value
+      : [];
+    if (type === "all_products" || values.length === 0)
+      return <span className="text-gray-400">Semua Produk</span>;
+    const label =
+      type === "category"
+        ? "Kategori"
+        : type === "brand"
+          ? "Merek"
+          : "Produk";
+    return (
+      <span className="text-xs">
+        <span className="font-medium text-blue-600">{label}:</span>{" "}
+        {values.join(", ")}
+      </span>
+    );
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -69,6 +90,7 @@ const VoucherListPage = () => {
               <th className="px-6 py-3">Kode</th>
               <th className="px-6 py-3">Deskripsi</th>
               <th className="px-6 py-3">Tipe</th>
+              <th className="px-6 py-3">Target</th>
               <th className="px-6 py-3">Nilai</th>
               <th className="px-6 py-3">Berlaku Hingga</th>
               <th className="px-6 py-3">Status</th>
@@ -98,6 +120,7 @@ const VoucherListPage = () => {
                   <td className="px-6 py-4 capitalize">
                     {voucher.type.replace("_", " ")}
                   </td>
+                  <td className="px-6 py-4">{renderTarget(voucher)}</td>
                   <td className="px-6 py-4">{renderDiscountValue(voucher)}</td>
                   <td className="px-6 py-4">
                     {formatDate(voucher.valid_until)}
