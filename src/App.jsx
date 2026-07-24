@@ -33,6 +33,7 @@ import VoucherListPage from "./pages/VoucherListPage";
 import VoucherForm from "./pages/VoucherForm";
 import ManajemenModelAI from "./pages/ManajemenModelAI.jsx";
 import ManajemenMargin from "./pages/ManajemenMargin.jsx";
+import PromoBanners from "./pages/PromoBanners.jsx";
 
 function MainLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -124,6 +125,7 @@ function App() {
               path="/manajemen-voucher/form/:voucherId"
               element={<VoucherForm />}
             />
+            <Route path="/manajemen-promo" element={<PromoBanners />} />
             <Route path="penjualan-grosir">
               <Route index element={<PenjualanGrosir />} />
               <Route path="baru" element={<FormPesananGrosir />} />
